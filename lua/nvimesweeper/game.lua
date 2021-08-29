@@ -2,7 +2,9 @@ local api, uv = vim.api, vim.loop
 
 local error = require("nvimesweeper.util").error
 
-local M = {}
+local M = {
+  games = {},
+}
 
 local STATE_NONE = 0
 local STATE_FLAGGED = 1
@@ -26,14 +28,14 @@ function M.new_board(width, height)
     return x >= 0 and y >= 0 and x < self.width and y < self.height
   end
 
-  function board:place_mines(mine_count)
+  function board:place_mines(safe_x, safe_y, mine_count)
     for _ = 1, mine_count do
       local x, y, i
-      repeat
+      repeat -- this loop is potentially O(infinity) ;)
         x = math.random(0, self.width - 1)
         y = math.random(0, self.height - 1)
         i = self:index(x, y)
-      until not self.mines[i] -- this loop is potentially O(infinity) ;)
+      until (x ~= safe_x or y ~= safe_y) and not self.mines[i]
 
       self.mines[i] = true
       for y2 = y - 1, y + 1 do
@@ -86,31 +88,46 @@ function M.new_game(width, height, mine_count)
       .. buf
       .. ")"
   )
+  api.nvim_buf_set_keymap(
+    buf,
+    "n",
+    "<CR>",
+    "<Cmd>lua require('nvimesweeper.game').reveal_square()<CR>",
+    { noremap = true }
+  )
+  api.nvim_buf_set_keymap(
+    buf,
+    "n",
+    "<Space>",
+    "<Cmd>lua require('nvimesweeper.game').place_flag()<CR>",
+    { noremap = true }
+  )
 
   local game = {
+    buf = buf,
     board = M.new_board(width, height),
     mine_count = mine_count,
     flags_used = 0,
-    start_time = uv.hrtime(), -- TODO: start time after first reveal
-    buf = buf,
     board_extmarks = {},
   }
+  M.games[buf] = game
 
   function game:enable_drawing(enable)
     api.nvim_buf_set_option(self.buf, "modifiable", enable)
   end
 
   function game:redraw_status()
-    api.nvim_buf_set_lines(
-      self.buf,
-      0,
-      0,
-      true,
-      {
-        "Time:    00:00", -- TODO: display elapsed time
-        "Flagged: " .. self.flags_used .. "/" .. self.mine_count,
-      }
-    )
+    local time
+    if not game.start_time then
+      time = "Time starts after you reveal a square..."
+    else
+      time = "Time:    00:00" -- TODO: display correct time
+    end
+
+    api.nvim_buf_set_lines(self.buf, 0, 2, true, {
+      time,
+      "Flagged: " .. self.flags_used .. "/" .. self.mine_count,
+    })
   end
 
   function game:full_redraw()
@@ -182,19 +199,103 @@ function M.new_game(width, height, mine_count)
     end
 
     -- Make room for the game status information and draw it
-    api.nvim_buf_set_lines(self.buf, 0, 0, true, { "" })
+    api.nvim_buf_set_lines(self.buf, 0, 0, true, { "", "", "" })
     self:redraw_status()
-
     self:enable_drawing(false)
   end
 
-  game.board:place_mines(game.mine_count) -- TODO: only after 1st uncover
   game:full_redraw()
   return game
 end
 
 function M.cleanup_game(buf)
-  -- TODO: this isn't needed right now
+  M.games[buf].redraw_timer:stop()
+  M.games[buf] = nil
+end
+
+local function get_action_args(buf, x, y)
+  if not buf then
+    buf = api.nvim_get_current_buf()
+    local pos = api.nvim_win_get_cursor(0)
+    x = pos[2]
+    y = pos[1] - 1 -- return row is 1-indexed
+    y = y - 3 -- HACK: get position from extmark
+  end
+  return M.games[buf], x, y
+end
+
+function M.place_flag(buf, x, y)
+  local game, x, y = get_action_args(buf, x, y)
+
+  local i = game.board:index(x, y)
+  local state = game.board.state
+  if state[i] == STATE_NONE then
+    state[i] = STATE_FLAGGED
+    game.flags_used = game.flags_used + 1
+  elseif state[i] == STATE_FLAGGED then
+    state[i] = STATE_NONE
+    game.flags_used = game.flags_used - 1
+  end
+
+  -- TODO: redraw just the status bar and the changed square
+  game:full_redraw()
+end
+
+function M.reveal_square(buf, x, y)
+  local game, x, y = get_action_args(buf, x, y)
+
+  local board = game.board
+  local state = board.state
+  local i = board:index(x, y)
+  if state[i] ~= STATE_NONE then
+    return
+  end
+
+  if not game.start_time then
+    board:place_mines(x, y, game.mine_count)
+    game.start_time = uv.hrtime()
+
+    game.redraw_timer = uv.new_timer()
+    game.redraw_timer:start(
+      0,
+      500,
+      vim.schedule_wrap(function()
+        game:enable_drawing(true)
+        game:redraw_status()
+        game:enable_drawing(false)
+      end)
+    )
+  end
+
+  -- fill-reveal surrounding (unflagged) squares with a danger score of 0
+  local danger = board.danger
+  local needs_reveal = { { x, y } }
+  while #needs_reveal > 0 do
+    local top = needs_reveal[#needs_reveal]
+    local tx, ty = top[1], top[2]
+    needs_reveal[#needs_reveal] = nil
+
+    if board:is_valid(tx, ty) then
+      local ti = board:index(tx, ty)
+
+      if state[ti] == STATE_NONE then
+        state[ti] = STATE_REVEALED
+
+        if danger[ti] == 0 then
+          for y2 = ty - 1, ty + 1 do
+            for x2 = tx - 1, tx + 1 do
+              if state[board:index(x2, y2)] == STATE_NONE then
+                needs_reveal[#needs_reveal + 1] = { x2, y2 }
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+
+  -- TODO: redraw just the status bar and the changed square(s)
+  game:full_redraw()
 end
 
 return M
