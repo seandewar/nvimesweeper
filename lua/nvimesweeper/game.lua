@@ -1,13 +1,11 @@
 local api, uv = vim.api, vim.loop
-
-local util = require "nvimesweeper.util"
-local error = util.error
+local error = require("nvimesweeper.util").error
 
 local M = {}
 
-local STATE_UNTOUCHED = 0
-local STATE_TOUCHED = 1
-local STATE_FLAGGED = 2
+local STATE_NONE = 0
+local STATE_FLAGGED = 1
+local STATE_UNCOVERED = 2
 
 function M.new_board(width, height)
   local board = {
@@ -25,16 +23,11 @@ function M.new_board(width, height)
     return x >= 0 and y >= 0 and x < self.width and y < self.height
   end
 
-  function board:has_mine(x, y)
-    return self.mines[self:index(x, y)] == true
-  end
-
   function board:danger(x, y)
     local danger = 0
-
     for ny = y - 1, y + 1 do
       for nx = x - 1, x + 1 do
-        if self:valid(nx, ny) and self:has_mine(nx, ny) then
+        if self:valid(nx, ny) and self.mines[self:index(nx, ny)] then
           danger = danger + 1
         end
       end
@@ -44,17 +37,21 @@ function M.new_board(width, height)
   end
 
   function board:place_mines(mine_count)
-    local random = math.random
     for _ = 1, mine_count do
-      local x, y = random(0, self.width), random(0, self.height)
-      self.mines[self:index(x, y)] = true
+      local i
+      repeat
+        local x, y = math.random(0, self.width), math.random(0, self.height)
+        i = self:index(x, y)
+      until not self.mines[i]
+
+      self.mines[i] = true
     end
   end
 
   function board:reset_state()
     -- fill the table as an array for performance
     for i = 1, self.width * self.height do
-      self.state[i] = STATE_UNTOUCHED
+      self.state[i] = STATE_UNCOVERED
     end
   end
 
@@ -80,20 +77,44 @@ function M.new_game(width, height, mine_count)
   end
 
   local game = {
+    board = M.new_board(width, height),
     mine_count = mine_count,
     start_time = uv.hrtime(),
-    board = M.new_board(width, height),
     buf = buf,
   }
 
-  -- TODO: temp test
-  game.board:place_mines(game.mine_count)
-  api.nvim_buf_set_option(buf, "modifiable", true)
-  for k, v in pairs(game.board.mines) do
-    api.nvim_buf_set_lines(game.buf, -2, -2, false, { tostring(k) })
-  end
-  api.nvim_buf_set_option(buf, "modifiable", false)
+  function game:redraw()
+    api.nvim_buf_set_option(self.buf, "modifiable", true)
 
+    local lines = {}
+    local i = 1
+    for y = 0, self.board.height - 1 do
+      local row = {}
+      for x = 0, self.board.width - 1 do
+        local state = self.board.state[i]
+        local char
+        if state == STATE_NONE then
+          char = "#"
+        elseif state == STATE_FLAGGED then
+          char = "!"
+        elseif state == STATE_UNCOVERED then
+          char = self.board.mines[i] and "*"
+            or tostring(self.board:danger(x, y))
+        end
+
+        row[x + 1] = char
+        i = i + 1
+      end
+
+      lines[y + 1] = table.concat(row)
+    end
+
+    api.nvim_buf_set_lines(self.buf, 0, -1, false, lines)
+    api.nvim_buf_set_option(self.buf, "modifiable", false)
+  end
+
+  game.board:place_mines(game.mine_count) -- TODO: only after 1st uncover
+  game:redraw()
   return game
 end
 

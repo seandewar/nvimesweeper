@@ -12,4 +12,8 @@ function M.reload()
   return require "nvimesweeper"
 end
 
+function M.is_integer(number)
+  return type(number) == "number" and math.floor(number) == number
+end
+
 return M

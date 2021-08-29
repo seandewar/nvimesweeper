@@ -6,17 +6,36 @@ local error = util.error
 
 local M = {
   default_opts = {
-    width = 20,
-    height = 20,
-    mine_count = 10,
+    width = 30,
+    height = 15,
+    mine_count = 55,
   },
 }
 
 function M.play(opts)
   opts = vim.tbl_extend("force", M.default_opts, opts)
 
-  if opts.width <= 0 or opts.height <= 0 or opts.mine_count <= 0 then
+  if
+    opts.width <= 0
+    or opts.height <= 0
+    or opts.mine_count <= 0
+    or not util.is_integer(opts.width)
+    or not util.is_integer(opts.height)
+    or not util.is_integer(opts.mine_count)
+  then
     error "board size and mine count must be positive integers!"
+    return false
+  end
+
+  local size = opts.width * opts.height
+  if opts.mine_count == size - 1 then
+    error(
+      "too easy; your first chosen square is always safe, so this would be a "
+        .. "guaranteed win..."
+    )
+    return false
+  elseif opts.mine_count >= size then
+    error "impossible game; way too many mines!"
     return false
   end
 
