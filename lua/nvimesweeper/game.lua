@@ -51,8 +51,7 @@ function M.new_board(width, height)
     self.mines = {}
     -- fill these tables as arrays for performance benefits
     for i = 1, self.width * self.height do
-      -- self.state[i] = STATE_NONE
-      self.state[i] = STATE_REVEALED
+      self.state[i] = STATE_NONE
       self.danger[i] = 0
     end
   end
@@ -91,14 +90,33 @@ function M.new_game(width, height, mine_count)
   local game = {
     board = M.new_board(width, height),
     mine_count = mine_count,
-    start_time = uv.hrtime(),
+    flags_used = 0,
+    start_time = uv.hrtime(), -- TODO: start time after first reveal
     buf = buf,
     board_extmarks = {},
   }
 
-  function game:full_redraw()
-    api.nvim_buf_set_option(self.buf, "modifiable", true)
+  function game:enable_drawing(enable)
+    api.nvim_buf_set_option(self.buf, "modifiable", enable)
+  end
 
+  function game:redraw_status()
+    api.nvim_buf_set_lines(
+      self.buf,
+      0,
+      0,
+      true,
+      {
+        "Time:    00:00", -- TODO: display elapsed time
+        "Flagged: " .. self.flags_used .. "/" .. self.mine_count,
+      }
+    )
+  end
+
+  function game:full_redraw()
+    self:enable_drawing(true)
+
+    -- Create the lines to draw from the rows of the game board
     local lines = {}
     local i = 1
     for y = 0, self.board.height - 1 do
@@ -126,8 +144,10 @@ function M.new_game(width, height, mine_count)
       lines[y + 1] = table.concat(row)
     end
 
+    -- Draw the board
     api.nvim_buf_set_lines(self.buf, 0, -1, false, lines)
 
+    -- Place extended marks for each board square
     i = 1
     for y = 0, self.board.height - 1 do
       for x = 0, self.board.width - 1 do
@@ -161,7 +181,11 @@ function M.new_game(width, height, mine_count)
       end
     end
 
-    api.nvim_buf_set_option(self.buf, "modifiable", false)
+    -- Make room for the game status information and draw it
+    api.nvim_buf_set_lines(self.buf, 0, 0, true, { "" })
+    self:redraw_status()
+
+    self:enable_drawing(false)
   end
 
   game.board:place_mines(game.mine_count) -- TODO: only after 1st uncover

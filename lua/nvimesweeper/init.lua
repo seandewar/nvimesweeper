@@ -7,8 +7,8 @@ local error = util.error
 local M = {
   default_opts = {
     width = 30,
-    height = 15,
-    mine_count = 55,
+    height = 20,
+    mine_count = 145,
   },
 }
 
