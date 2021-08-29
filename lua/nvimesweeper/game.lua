@@ -1,4 +1,5 @@
 local api, uv = vim.api, vim.loop
+
 local error = require("nvimesweeper.util").error
 
 local M = {}
@@ -38,9 +39,11 @@ function M.new_board(width, height)
 
   function board:place_mines(mine_count)
     for _ = 1, mine_count do
+      -- this loop is potentially O(infinity) ;)
       local i
       repeat
-        local x, y = math.random(0, self.width), math.random(0, self.height)
+        local x = math.random(0, self.width - 1)
+        local y = math.random(0, self.height - 1)
         i = self:index(x, y)
       until not self.mines[i]
 
