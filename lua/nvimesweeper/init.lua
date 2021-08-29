@@ -1,8 +1,13 @@
-local uv = vim.loop
+local fn, api, uv = vim.fn, vim.api, vim.loop
 
 local M = {
   games = {},
 }
+
+function M.reload()
+  package.loaded.nvimesweeper = nil
+  return require "nvimesweeper"
+end
 
 local STATE_UNTOUCHED = 0
 local STATE_TOUCHED = 1
@@ -66,15 +71,65 @@ function M.new_board(width, height)
 end
 
 function M.new_game(width, height, mine_count, rng_seed)
+  local buf = api.nvim_create_buf(true, true)
+  if buf == 0 then
+    error "[nvimesweeper] failed to create game buffer!"
+    return nil
+  end
+
+  api.nvim_buf_set_name(buf, "[nvimesweeper " .. buf .. "]")
+  api.nvim_buf_set_option(buf, "modifiable", false)
+
+  local ok, _ = pcall(vim.cmd, "tab sbuffer " .. buf)
+  if not ok then
+    error "[nvimesweeper] failed to open game window!"
+    api.nvim_buf_delete(buf, { force = true })
+    return nil
+  end
+
   local game = {
-    board = M.new_board(width, height),
     mine_count = mine_count,
-    start_time = uv.hrtime(),
     rng_seed = rng_seed,
-    buffer = 0,
+    start_time = uv.hrtime(),
+    board = M.new_board(width, height),
+    buf = buf,
   }
 
+  -- TODO: temp test
+  game.board:place_mines(game.mine_count)
+  api.nvim_buf_set_option(buf, "modifiable", true)
+  for k, v in pairs(game.board.mines) do
+    api.nvim_buf_set_lines(game.buf, -2, -2, false, {tostring(k)})
+  end
+  api.nvim_buf_set_option(buf, "modifiable", false)
+
   return game
+end
+
+function M.play_cmd(args)
+  -- TODO: parse command args if provided; otherwise prompt instead
+
+  local width = fn.input("How many squares in width? ", "20")
+  local height = fn.input("How many squares in height? ", "20")
+  local mine_count = fn.input("How many mines? ", "9")
+
+  width = tonumber(width)
+  height = tonumber(height)
+  mine_count = tonumber(mine_count)
+
+  if
+    not width
+    or not height
+    or not mine_count
+    or width <= 0
+    or height <= 0
+    or mine_count <= 0
+  then
+    error "[nvimesweeper] inputs must be positive integers!"
+    return
+  end
+
+  M.new_game(width, height, mine_count)
 end
 
 return M
