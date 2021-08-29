@@ -8,7 +8,6 @@ function M.reload()
   package.loaded.nvimesweeper = nil
   package.loaded["nvimesweeper.game"] = nil
   package.loaded["nvimesweeper.util"] = nil
-
   return require "nvimesweeper"
 end
 

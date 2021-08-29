@@ -1,1 +1,21 @@
 command! -nargs=* Nvimesweeper lua require("nvimesweeper").play_cmd(<q-args>)
+
+highlight default NvimesweeperDanger1 ctermfg=9
+highlight default NvimesweeperDanger2 ctermfg=10
+highlight default NvimesweeperDanger3 ctermfg=12
+highlight default NvimesweeperDanger4 ctermfg=1
+highlight default NvimesweeperDanger5 ctermfg=4
+highlight default NvimesweeperDanger6 ctermfg=11
+highlight default NvimesweeperDanger7 ctermfg=8
+highlight default NvimesweeperDanger8 ctermfg=7
+
+highlight default link NvimesweeperFlagged WarningMsg
+highlight default link NvimesweeperMine Error
+highlight default link NvimesweeperDanger1 NvimesweeperDefaultDanger1
+highlight default link NvimesweeperDanger2 NvimesweeperDefaultDanger2
+highlight default link NvimesweeperDanger3 NvimesweeperDefaultDanger3
+highlight default link NvimesweeperDanger4 NvimesweeperDefaultDanger4
+highlight default link NvimesweeperDanger5 NvimesweeperDefaultDanger5
+highlight default link NvimesweeperDanger6 NvimesweeperDefaultDanger6
+highlight default link NvimesweeperDanger7 NvimesweeperDefaultDanger7
+highlight default link NvimesweeperDanger8 NvimesweeperDefaultDanger8
