@@ -18,11 +18,11 @@ end
 function Board:place_mines(safe_i)
   for _ = 1, self.mine_count do
     local x, y, i
-    repeat -- potentially O(infinity) ;)
+    repeat
       x = math.random(0, self.width - 1)
       y = math.random(0, self.height - 1)
       i = self:index(x, y)
-    until i ~= safe_i and not self.mines[i]
+    until i ~= safe_i and not self.mines[i] -- O(infinity) :^)
 
     self.mines[i] = true
     for ay = y - 1, y + 1 do
@@ -38,9 +38,9 @@ end
 
 function Board:reset()
   self.flags_used = 0
+  self.unrevealed_rem = self.width * self.height
   self.mines = {}
 
-  -- performance: fill these tables sequentually so they're treated as arrays
   for i = 1, self.width * self.height do
     self.state[i] = M.SQUARE_NONE
     self.danger[i] = 0
@@ -61,6 +61,17 @@ function Board:flag_unrevealed(i, new_state)
 
   self.flags_used = self.flags_used + (state ~= M.SQUARE_FLAGGED and 1 or -1)
   self.state[i] = new_state
+  return true
+end
+
+function Board:reveal_square(i)
+  local state = self.state[i]
+  if state == M.SQUARE_REVEALED then
+    return false
+  end
+
+  self.state[i] = M.SQUARE_REVEALED
+  self.unrevealed_rem = self.unrevealed_rem - 1
   return true
 end
 

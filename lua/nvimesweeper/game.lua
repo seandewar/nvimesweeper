@@ -37,9 +37,9 @@ function Game:redraw_status()
       .. "/"
       .. self.board.mine_count
   elseif self.state == M.GAME_WON then
-    status = "Congratulations, you won! " .. time_string()
+    status = "Congratulations, you win! " .. time_string()
   elseif self.state == M.GAME_LOST then
-    status = "KA-BOOM! Oh no, you exploded! " .. time_string()
+    status = "KA-BOOM! You exploded! " .. time_string()
   end
 
   api.nvim_buf_set_lines(self.buf, 0, 2, false, { status, "" })
@@ -151,7 +151,7 @@ function M.new_game(width, height, mine_count)
     buf,
     "n",
     "<CR>",
-    "<Cmd>lua require('nvimesweeper.game').reveal_square()<CR>",
+    "<Cmd>lua require('nvimesweeper.game').reveal()<CR>",
     { noremap = true }
   )
   api.nvim_buf_set_keymap(
@@ -231,7 +231,7 @@ function M.cycle_marker(buf, x, y)
   return ok
 end
 
-function M.reveal_square(buf, x, y)
+function M.reveal(buf, x, y)
   local game, x, y = get_action_args(buf, x, y)
   local i = game.board:index(x, y)
   if not i then
@@ -266,12 +266,6 @@ function M.reveal_square(buf, x, y)
     return false
   end
 
-  -- TODO: check win condition
-  if game.board.mines[i] then
-    game.state = M.GAME_LOST
-    game.redraw_timer:stop()
-  end
-
   -- fill-reveal surrounding squares with 0 danger score
   local needs_reveal = { { x, y } }
   while #needs_reveal > 0 do
@@ -281,7 +275,7 @@ function M.reveal_square(buf, x, y)
     needs_reveal[#needs_reveal] = nil
 
     if ti and should_reveal(game.board.state[ti]) then
-      game.board.state[ti] = board_mod.SQUARE_REVEALED
+      game.board:reveal_square(ti)
       if game.board.danger[ti] == 0 then
         for ay = ty - 1, ty + 1 do
           for ax = tx - 1, tx + 1 do
@@ -293,6 +287,14 @@ function M.reveal_square(buf, x, y)
         end
       end
     end
+  end
+
+  if game.board.mines[i] then
+    game.state = M.GAME_LOST
+    game.redraw_timer:stop()
+  elseif game.board.unrevealed_rem == game.board.mine_count then
+    game.state = M.GAME_WON
+    game.redraw_timer:stop()
   end
 
   -- TODO: redraw just the status bar and the changed square(s)
