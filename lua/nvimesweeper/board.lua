@@ -15,7 +15,9 @@ function Board:index(x, y)
   return self:is_valid(x, y) and self.width * y + x + 1 or nil
 end
 
-function Board:place_mines(safe_i)
+-- Uses self.mine_count if mine_count argument is nil
+function Board:place_mines(safe_i, mine_count)
+  self.mine_count = mine_count or self.mine_count
   for _ = 1, self.mine_count do
     local x, y, i
     repeat
@@ -37,8 +39,9 @@ function Board:place_mines(safe_i)
 end
 
 function Board:reset()
-  self.flags_used = 0
-  self.unrevealed_rem = self.width * self.height
+  self.flag_count = 0
+  self.unrevealed_count = self.width * self.height
+  self.mine_count = 0
   self.mines = {}
 
   for i = 1, self.width * self.height do
@@ -59,7 +62,12 @@ function Board:flag_unrevealed(i, new_state)
     return true
   end
 
-  self.flags_used = self.flags_used + (state ~= M.SQUARE_FLAGGED and 1 or -1)
+  if new_state == M.SQUARE_FLAGGED then
+    self.flag_count = self.flag_count + 1
+  elseif state == M.SQUARE_FLAGGED then
+    self.flag_count = self.flag_count - 1
+  end
+
   self.state[i] = new_state
   return true
 end
@@ -71,15 +79,14 @@ function Board:reveal_square(i)
   end
 
   self.state[i] = M.SQUARE_REVEALED
-  self.unrevealed_rem = self.unrevealed_rem - 1
+  self.unrevealed_count = self.unrevealed_count - 1
   return true
 end
 
-function M.new_board(width, height, mine_count)
+function M.new_board(width, height)
   local board = vim.deepcopy(Board)
   board.width = width
   board.height = height
-  board.mine_count = mine_count
   board.state = {}
   board.danger = {}
 

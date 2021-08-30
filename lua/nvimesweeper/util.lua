@@ -1,10 +1,15 @@
+local api = vim.api
+
 local M = {}
 
 function M.reload()
   package.loaded.nvimesweeper = nil
   package.loaded["nvimesweeper.board"] = nil
   package.loaded["nvimesweeper.game"] = nil
+  package.loaded["nvimesweeper.game_state"] = nil
+  package.loaded["nvimesweeper.ui"] = nil
   package.loaded["nvimesweeper.util"] = nil
+
   return require "nvimesweeper"
 end
 
@@ -14,6 +19,10 @@ end
 
 function M.is_integer(number)
   return type(number) == "number" and math.floor(number) == number
+end
+
+function M.nnoremap(buf, lhs, rhs)
+  api.nvim_buf_set_keymap(buf, "n", lhs, rhs, { noremap = true, silent = true })
 end
 
 return M

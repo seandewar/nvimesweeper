@@ -8,26 +8,22 @@ set cpoptions&vim
 command! -nargs=* Nvimesweeper lua require("nvimesweeper").play_cmd(<q-args>)
 
 function! s:DefineHighlights() abort
-    highlight default NvimesweeperDefaultDanger1 ctermfg=9
-    highlight default NvimesweeperDefaultDanger2 ctermfg=10
-    highlight default NvimesweeperDefaultDanger3 ctermfg=12
-    highlight default NvimesweeperDefaultDanger4 ctermfg=1
-    highlight default NvimesweeperDefaultDanger5 ctermfg=4
-    highlight default NvimesweeperDefaultDanger6 ctermfg=11
-    highlight default NvimesweeperDefaultDanger7 ctermfg=8
-    highlight default NvimesweeperDefaultDanger8 ctermfg=7
+    highlight default NvimesweeperUnrevealed ctermbg=Grey
+    highlight default NvimesweeperMaybe ctermfg=Black ctermbg=Grey
+    highlight default NvimesweeperFlag ctermfg=Red ctermbg=Grey
 
-    highlight default link NvimesweeperFlagged WarningMsg
-    highlight default link NvimesweeperMaybe Todo
-    highlight default link NvimesweeperMine Error
-    highlight default link NvimesweeperDanger1 NvimesweeperDefaultDanger1
-    highlight default link NvimesweeperDanger2 NvimesweeperDefaultDanger2
-    highlight default link NvimesweeperDanger3 NvimesweeperDefaultDanger3
-    highlight default link NvimesweeperDanger4 NvimesweeperDefaultDanger4
-    highlight default link NvimesweeperDanger5 NvimesweeperDefaultDanger5
-    highlight default link NvimesweeperDanger6 NvimesweeperDefaultDanger6
-    highlight default link NvimesweeperDanger7 NvimesweeperDefaultDanger7
-    highlight default link NvimesweeperDanger8 NvimesweeperDefaultDanger8
+    highlight default NvimesweeperRevealed ctermbg=DarkGrey
+    highlight default NvimesweeperTriggeredMine ctermfg=Black ctermbg=Red
+    highlight default NvimesweeperMine ctermfg=Black ctermbg=DarkGrey
+    highlight default NvimesweeperFlagWrong ctermfg=Red ctermbg=DarkGrey
+    highlight default NvimesweeperDanger1 ctermfg=DarkBlue ctermbg=DarkGrey
+    highlight default NvimesweeperDanger2 ctermfg=Green ctermbg=DarkGrey
+    highlight default NvimesweeperDanger3 ctermfg=Red ctermbg=DarkGrey
+    highlight default NvimesweeperDanger4 ctermfg=DarkMagenta ctermbg=DarkGrey
+    highlight default NvimesweeperDanger5 ctermfg=DarkRed ctermbg=DarkGrey
+    highlight default NvimesweeperDanger6 ctermfg=DarkCyan ctermbg=DarkGrey
+    highlight default NvimesweeperDanger7 ctermfg=Black ctermbg=DarkGrey
+    highlight default NvimesweeperDanger8 ctermfg=White ctermbg=DarkGrey
 endfunction
 
 augroup nvimesweeper_define_highlights
