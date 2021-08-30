@@ -8,7 +8,6 @@ local M = {
   GAME_STARTED = 1,
   GAME_WON = 2,
   GAME_LOST = 3,
-
   games = {},
 }
 
@@ -30,20 +29,20 @@ function Game:redraw_status()
 
   local status
   if self.state == M.GAME_NOT_STARTED then
-    status = "The game will start after you reveal a square..."
+    status = "Game will begin once you reveal a square..."
   elseif self.state == M.GAME_STARTED then
     status = time_string()
+      .. "\tFlagged: "
+      .. self.board.flags_used
+      .. "/"
+      .. self.board.mine_count
   elseif self.state == M.GAME_WON then
-    status = "Congratulations, you win! " .. time_string()
+    status = "Congratulations, you won! " .. time_string()
   elseif self.state == M.GAME_LOST then
-    status = "You lost; better luck next time! " .. time_string()
+    status = "KA-BOOM! Oh no, you exploded! " .. time_string()
   end
 
-  api.nvim_buf_set_lines(self.buf, 0, 3, false, {
-    status,
-    "Flagged: " .. self.flags_used .. "/" .. self.mine_count,
-    "",
-  })
+  api.nvim_buf_set_lines(self.buf, 0, 2, false, { status, "" })
 end
 
 function Game:full_redraw()
@@ -62,6 +61,8 @@ function Game:full_redraw()
         char = "#"
       elseif state == board_mod.SQUARE_FLAGGED then
         char = "!"
+      elseif state == board_mod.SQUARE_MAYBE then
+        char = "?"
       elseif state == board_mod.SQUARE_REVEALED then
         if self.board.mines[i] then
           char = "*"
@@ -79,7 +80,7 @@ function Game:full_redraw()
   end
 
   -- Draw the board
-  api.nvim_buf_set_lines(self.buf, 3, 3 + #lines, false, lines)
+  api.nvim_buf_set_lines(self.buf, 2, 2 + #lines, false, lines)
 
   -- Place extended marks for each board square
   i = 1
@@ -89,6 +90,8 @@ function Game:full_redraw()
       local state = self.board.state[i]
       if state == board_mod.SQUARE_FLAGGED then
         hl_group = "NvimesweeperFlagged"
+      elseif state == board_mod.SQUARE_MAYBE then
+        hl_group = "NvimesweeperMaybe"
       elseif state == board_mod.SQUARE_REVEALED then
         if self.board.mines[i] then
           hl_group = "NvimesweeperMine"
@@ -103,7 +106,7 @@ function Game:full_redraw()
       self.board_extmarks[i] = api.nvim_buf_set_extmark(
         self.buf,
         namespace,
-        3 + y,
+        2 + y,
         x,
         {
           id = self.board_extmarks[i],
@@ -137,7 +140,7 @@ function M.new_game(width, height, mine_count)
 
   api.nvim_win_set_option(0, "wrap", false)
   vim.cmd(
-    "autocmd BufUnload <buffer="
+    "autocmd BufWipeout <buffer="
       .. buf
       .. "> ++once "
       .. "lua require('nvimesweeper.game').cleanup_game("
@@ -155,19 +158,26 @@ function M.new_game(width, height, mine_count)
     buf,
     "n",
     "<Space>",
-    "<Cmd>lua require('nvimesweeper.game').place_flag()<CR>",
+    "<Cmd>lua require('nvimesweeper.game').cycle_marker()<CR>",
     { noremap = true }
   )
 
   local game = vim.deepcopy(Game)
-  game.mine_count = mine_count
-  game.flags_used = 0
   game.buf = buf
-  game.board = board_mod.new_board(width, height)
-  game.board_extmarks = {}
   game.state = M.GAME_NOT_STARTED
-
+  game.board = board_mod.new_board(width, height, mine_count)
+  game.board_extmarks = {}
   game:full_redraw()
+
+  local board_pos = api.nvim_buf_get_extmark_by_id(
+    game.buf,
+    namespace,
+    game.board_extmarks[1],
+    {}
+  )
+  board_pos[1] = board_pos[1] + 1 -- row is 0-indexed
+  api.nvim_win_set_cursor(0, board_pos)
+
   M.games[buf] = game
   return game
 end
@@ -187,44 +197,58 @@ local function get_action_args(buf, x, y)
     local pos = api.nvim_win_get_cursor(0)
     x = pos[2]
     y = pos[1] - 1 -- return row is 1-indexed
-    y = y - 3 -- HACK: get position from extmark
+    y = y - 2 -- HACK: get position from extmark instead
   end
   return M.games[buf], x, y
 end
 
-function M.place_flag(buf, x, y)
+function M.cycle_marker(buf, x, y)
   local game, x, y = get_action_args(buf, x, y)
-
   if game.state ~= M.GAME_STARTED then
-    return
+    return false
   end
 
   local i = game.board:index(x, y)
-  local state = game.board.state
-  if state[i] == board_mod.SQUARE_NONE then
-    state[i] = board_mod.SQUARE_FLAGGED
-    game.flags_used = game.flags_used + 1
-  elseif state[i] == board_mod.SQUARE_FLAGGED then
-    state[i] = board_mod.SQUARE_NONE
-    game.flags_used = game.flags_used - 1
+  if not i then
+    return false
   end
 
-  -- TODO: redraw just the status bar and the changed square
-  game:full_redraw()
+  local state = game.board.state[i]
+  local new_state
+  if state == board_mod.SQUARE_NONE then
+    new_state = board_mod.SQUARE_FLAGGED
+  elseif state == board_mod.SQUARE_FLAGGED then
+    new_state = board_mod.SQUARE_MAYBE
+  else
+    new_state = board_mod.SQUARE_NONE
+  end
+
+  local ok = game.board:flag_unrevealed(i, new_state)
+  if ok then
+    game:full_redraw() -- TODO: redraw only the status bar and changed square
+  end
+
+  return ok
 end
 
 function M.reveal_square(buf, x, y)
   local game, x, y = get_action_args(buf, x, y)
+  local i = game.board:index(x, y)
+  if not i then
+    return false
+  end
 
-  local board = game.board
-  local state = board.state
-  local i = board:index(x, y)
-  if state[i] ~= board_mod.SQUARE_NONE then
-    return
+  local function should_reveal(state)
+    return state == board_mod.SQUARE_NONE or state == board_mod.SQUARE_MAYBE
+  end
+
+  local state = game.board.state[i]
+  if not should_reveal(state) then
+    return false
   end
 
   if game.state == M.GAME_NOT_STARTED then
-    board:place_mines(x, y, game.mine_count)
+    game.board:place_mines(i)
     game.state = M.GAME_STARTED
     game.start_time = uv.hrtime()
 
@@ -239,29 +263,31 @@ function M.reveal_square(buf, x, y)
       end)
     )
   elseif game.state ~= M.GAME_STARTED then
-    return
+    return false
   end
 
-  -- fill-reveal surrounding (unflagged) squares with a danger score of 0
-  local danger = board.danger
+  -- TODO: check win condition
+  if game.board.mines[i] then
+    game.state = M.GAME_LOST
+    game.redraw_timer:stop()
+  end
+
+  -- fill-reveal surrounding squares with 0 danger score
   local needs_reveal = { { x, y } }
   while #needs_reveal > 0 do
     local top = needs_reveal[#needs_reveal]
     local tx, ty = top[1], top[2]
+    local ti = game.board:index(tx, ty)
     needs_reveal[#needs_reveal] = nil
 
-    if board:is_valid(tx, ty) then
-      local ti = board:index(tx, ty)
-
-      if state[ti] == board_mod.SQUARE_NONE then
-        state[ti] = board_mod.SQUARE_REVEALED
-
-        if danger[ti] == 0 then
-          for y2 = ty - 1, ty + 1 do
-            for x2 = tx - 1, tx + 1 do
-              if state[board:index(x2, y2)] == board_mod.SQUARE_NONE then
-                needs_reveal[#needs_reveal + 1] = { x2, y2 }
-              end
+    if ti and should_reveal(game.board.state[ti]) then
+      game.board.state[ti] = board_mod.SQUARE_REVEALED
+      if game.board.danger[ti] == 0 then
+        for ay = ty - 1, ty + 1 do
+          for ax = tx - 1, tx + 1 do
+            local ai = game.board:index(ax, ay)
+            if ai and should_reveal(game.board.state[ai]) then
+              needs_reveal[#needs_reveal + 1] = { ax, ay }
             end
           end
         end
@@ -271,6 +297,7 @@ function M.reveal_square(buf, x, y)
 
   -- TODO: redraw just the status bar and the changed square(s)
   game:full_redraw()
+  return true
 end
 
 return M

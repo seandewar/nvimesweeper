@@ -1,3 +1,10 @@
+if exists('g:loaded_nvimesweeper')
+    finish
+endif
+
+let s:save_cpo = &cpoptions
+set cpoptions&vim
+
 command! -nargs=* Nvimesweeper lua require("nvimesweeper").play_cmd(<q-args>)
 
 function! s:DefineHighlights() abort
@@ -11,6 +18,7 @@ function! s:DefineHighlights() abort
     highlight default NvimesweeperDefaultDanger8 ctermfg=7
 
     highlight default link NvimesweeperFlagged WarningMsg
+    highlight default link NvimesweeperMaybe Todo
     highlight default link NvimesweeperMine Error
     highlight default link NvimesweeperDanger1 NvimesweeperDefaultDanger1
     highlight default link NvimesweeperDanger2 NvimesweeperDefaultDanger2
@@ -30,3 +38,7 @@ augroup END
 
 call s:DefineHighlights()
 
+let &cpoptions = s:save_cpo
+unlet s:save_cpo
+
+let g:loaded_nvimesweeper = 1
