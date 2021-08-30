@@ -39,7 +39,7 @@ function Game:redraw_status()
   elseif self.state == M.GAME_WON then
     status = "Congratulations, you win! " .. time_string()
   elseif self.state == M.GAME_LOST then
-    status = "KA-BOOM! You exploded! " .. time_string()
+    status = "KA-BOOM! You exploded... " .. time_string()
   end
 
   api.nvim_buf_set_lines(self.buf, 0, 2, false, { status, "" })

@@ -28,10 +28,10 @@ function M.play(opts)
   end
 
   local size = opts.width * opts.height
-  if opts.mine_count == size - 1 then
+  if opts.mine_count == 1 or opts.mine_count == size - 1 then
     error(
-      "too easy; your first chosen square is always safe, so this would be a "
-        .. "guaranteed win..."
+      "way too easy; your first chosen square is always safe, so this would be "
+        .. "a guaranteed win..."
     )
     return false
   elseif opts.mine_count >= size then
