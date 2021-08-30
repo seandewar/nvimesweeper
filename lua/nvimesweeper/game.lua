@@ -1,65 +1,106 @@
 local api, uv = vim.api, vim.loop
 
+local board_mod = require "nvimesweeper.board"
 local error = require("nvimesweeper.util").error
 
 local M = {
   games = {},
 }
 
-local STATE_NONE = 0
-local STATE_FLAGGED = 1
-local STATE_REVEALED = 2
-
 local namespace = api.nvim_create_namespace "nvimesweeper"
 
-function M.new_board(width, height)
-  local board = {
-    width = width,
-    height = height,
-    state = {},
-    danger = {},
-  }
+local Game = {}
 
-  function board:index(x, y)
-    return self.width * y + x + 1
+function Game:enable_drawing(enable)
+  api.nvim_buf_set_option(self.buf, "modifiable", enable)
+end
+
+function Game:redraw_status()
+  local time
+  if not self.start_time then
+    time = "Time starts after you reveal a square..."
+  else
+    time = "Time:    00:00"
   end
 
-  function board:is_valid(x, y)
-    return x >= 0 and y >= 0 and x < self.width and y < self.height
+  api.nvim_buf_set_lines(self.buf, 0, 2, true, {
+    time,
+    "Flagged: " .. self.flags_used .. "/" .. self.mine_count,
+  })
+end
+
+function Game:full_redraw()
+  self:enable_drawing(true)
+
+  -- Create the lines to draw from the rows of the game board
+  local lines = {}
+  local i = 1
+  for y = 0, self.board.height - 1 do
+    local row = {}
+    for x = 0, self.board.width - 1 do
+      local state = self.board.state[i]
+      local char
+      if state == board_mod.SQUARE_NONE then
+        char = "#"
+      elseif state == board_mod.SQUARE_FLAGGED then
+        char = "!"
+      elseif state == board_mod.SQUARE_REVEALED then
+        if self.board.mines[i] then
+          char = "*"
+        else
+          local danger = self.board.danger[i]
+          char = danger > 0 and tostring(danger) or "."
+        end
+      end
+
+      row[x + 1] = char
+      i = i + 1
+    end
+
+    lines[y + 1] = table.concat(row)
   end
 
-  function board:place_mines(safe_x, safe_y, mine_count)
-    for _ = 1, mine_count do
-      local x, y, i
-      repeat -- this loop is potentially O(infinity) ;)
-        x = math.random(0, self.width - 1)
-        y = math.random(0, self.height - 1)
-        i = self:index(x, y)
-      until (x ~= safe_x or y ~= safe_y) and not self.mines[i]
+  -- Draw the board
+  api.nvim_buf_set_lines(self.buf, 0, -1, false, lines)
 
-      self.mines[i] = true
-      for y2 = y - 1, y + 1 do
-        for x2 = x - 1, x + 1 do
-          if self:is_valid(x2, y2) then
-            local i2 = self:index(x2, y2)
-            self.danger[i2] = self.danger[i2] + 1
+  -- Place extended marks for each board square
+  i = 1
+  for y = 0, self.board.height - 1 do
+    for x = 0, self.board.width - 1 do
+      local hl_group
+      local state = self.board.state[i]
+      if state == board_mod.SQUARE_FLAGGED then
+        hl_group = "NvimesweeperFlagged"
+      elseif state == board_mod.SQUARE_REVEALED then
+        if self.board.mines[i] then
+          hl_group = "NvimesweeperMine"
+        else
+          local danger = self.board.danger[i]
+          if danger > 0 then
+            hl_group = "NvimesweeperDanger" .. danger
           end
         end
       end
+
+      self.board_extmarks[i] = api.nvim_buf_set_extmark(
+        self.buf,
+        namespace,
+        y,
+        x,
+        {
+          id = self.board_extmarks[i],
+          end_col = x + 1,
+          hl_group = hl_group,
+        }
+      )
+      i = i + 1
     end
   end
 
-  function board:reset()
-    self.mines = {}
-    -- fill these tables as arrays for performance benefits
-    for i = 1, self.width * self.height do
-      self.state[i] = STATE_NONE
-      self.danger[i] = 0
-    end
-  end
-
-  board:reset()
-  return board
+  -- Make room for the game status information and draw it
+  api.nvim_buf_set_lines(self.buf, 0, 0, true, { "", "", "" })
+  self:redraw_status()
+  self:enable_drawing(false)
 end
 
 function M.new_game(width, height, mine_count)
@@ -103,108 +144,15 @@ function M.new_game(width, height, mine_count)
     { noremap = true }
   )
 
-  local game = {
-    buf = buf,
-    board = M.new_board(width, height),
-    mine_count = mine_count,
-    flags_used = 0,
-    board_extmarks = {},
-  }
-  M.games[buf] = game
-
-  function game:enable_drawing(enable)
-    api.nvim_buf_set_option(self.buf, "modifiable", enable)
-  end
-
-  function game:redraw_status()
-    local time
-    if not game.start_time then
-      time = "Time starts after you reveal a square..."
-    else
-      time = "Time:    00:00" -- TODO: display correct time
-    end
-
-    api.nvim_buf_set_lines(self.buf, 0, 2, true, {
-      time,
-      "Flagged: " .. self.flags_used .. "/" .. self.mine_count,
-    })
-  end
-
-  function game:full_redraw()
-    self:enable_drawing(true)
-
-    -- Create the lines to draw from the rows of the game board
-    local lines = {}
-    local i = 1
-    for y = 0, self.board.height - 1 do
-      local row = {}
-      for x = 0, self.board.width - 1 do
-        local state = self.board.state[i]
-        local char
-        if state == STATE_NONE then
-          char = "#"
-        elseif state == STATE_FLAGGED then
-          char = "!"
-        elseif state == STATE_REVEALED then
-          if self.board.mines[i] then
-            char = "*"
-          else
-            local danger = self.board.danger[i]
-            char = danger > 0 and tostring(danger) or "."
-          end
-        end
-
-        row[x + 1] = char
-        i = i + 1
-      end
-
-      lines[y + 1] = table.concat(row)
-    end
-
-    -- Draw the board
-    api.nvim_buf_set_lines(self.buf, 0, -1, false, lines)
-
-    -- Place extended marks for each board square
-    i = 1
-    for y = 0, self.board.height - 1 do
-      for x = 0, self.board.width - 1 do
-        local hl_group
-        local state = self.board.state[i]
-        if state == STATE_FLAGGED then
-          hl_group = "NvimesweeperFlagged"
-        elseif state == STATE_REVEALED then
-          if self.board.mines[i] then
-            hl_group = "NvimesweeperMine"
-          else
-            local danger = self.board.danger[i]
-            if danger > 0 then
-              hl_group = "NvimesweeperDanger" .. danger
-            end
-          end
-        end
-
-        self.board_extmarks[i] = api.nvim_buf_set_extmark(
-          self.buf,
-          namespace,
-          y,
-          x,
-          {
-            id = self.board_extmarks[i],
-            end_col = x + 1,
-            hl_group = hl_group,
-          }
-        )
-        i = i + 1
-      end
-    end
-
-    -- Make room for the game status information and draw it
-    api.nvim_buf_set_lines(self.buf, 0, 0, true, { "", "", "" })
-    self:redraw_status()
-    self:enable_drawing(false)
-  end
+  local game = vim.deepcopy(Game)
+  game.mine_count = mine_count
+  game.flags_used = 0
+  game.buf = buf
+  game.board = board_mod.new_board(width, height)
+  game.board_extmarks = {}
 
   game:full_redraw()
+  M.games[buf] = game
   return game
 end
 
@@ -229,11 +177,11 @@ function M.place_flag(buf, x, y)
 
   local i = game.board:index(x, y)
   local state = game.board.state
-  if state[i] == STATE_NONE then
-    state[i] = STATE_FLAGGED
+  if state[i] == board_mod.SQUARE_NONE then
+    state[i] = board_mod.SQUARE_FLAGGED
     game.flags_used = game.flags_used + 1
-  elseif state[i] == STATE_FLAGGED then
-    state[i] = STATE_NONE
+  elseif state[i] == board_mod.SQUARE_FLAGGED then
+    state[i] = board_mod.SQUARE_NONE
     game.flags_used = game.flags_used - 1
   end
 
@@ -247,7 +195,7 @@ function M.reveal_square(buf, x, y)
   local board = game.board
   local state = board.state
   local i = board:index(x, y)
-  if state[i] ~= STATE_NONE then
+  if state[i] ~= board_mod.SQUARE_NONE then
     return
   end
 
@@ -278,13 +226,13 @@ function M.reveal_square(buf, x, y)
     if board:is_valid(tx, ty) then
       local ti = board:index(tx, ty)
 
-      if state[ti] == STATE_NONE then
-        state[ti] = STATE_REVEALED
+      if state[ti] == board_mod.SQUARE_NONE then
+        state[ti] = board_mod.SQUARE_REVEALED
 
         if danger[ti] == 0 then
           for y2 = ty - 1, ty + 1 do
             for x2 = tx - 1, tx + 1 do
-              if state[board:index(x2, y2)] == STATE_NONE then
+              if state[board:index(x2, y2)] == board_mod.SQUARE_NONE then
                 needs_reveal[#needs_reveal + 1] = { x2, y2 }
               end
             end
