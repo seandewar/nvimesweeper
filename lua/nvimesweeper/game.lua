@@ -4,6 +4,11 @@ local board_mod = require "nvimesweeper.board"
 local error = require("nvimesweeper.util").error
 
 local M = {
+  GAME_NOT_STARTED = 0,
+  GAME_STARTED = 1,
+  GAME_WON = 2,
+  GAME_LOST = 3,
+
   games = {},
 }
 
@@ -16,21 +21,34 @@ function Game:enable_drawing(enable)
 end
 
 function Game:redraw_status()
-  local time
-  if not self.start_time then
-    time = "Time starts after you reveal a square..."
-  else
-    time = "Time:    00:00"
+  local function time_string()
+    local nanoseconds = uv.hrtime() - self.start_time
+    local seconds = math.floor(nanoseconds / 1000000000)
+    local minutes = math.floor(seconds / 60)
+    return string.format("Time: %02d:%02d", minutes, seconds % 60)
   end
 
-  api.nvim_buf_set_lines(self.buf, 0, 2, true, {
-    time,
+  local status
+  if self.state == M.GAME_NOT_STARTED then
+    status = "The game will start after you reveal a square..."
+  elseif self.state == M.GAME_STARTED then
+    status = time_string()
+  elseif self.state == M.GAME_WON then
+    status = "Congratulations, you win! " .. time_string()
+  elseif self.state == M.GAME_LOST then
+    status = "You lost; better luck next time! " .. time_string()
+  end
+
+  api.nvim_buf_set_lines(self.buf, 0, 3, false, {
+    status,
     "Flagged: " .. self.flags_used .. "/" .. self.mine_count,
+    "",
   })
 end
 
 function Game:full_redraw()
   self:enable_drawing(true)
+  self:redraw_status()
 
   -- Create the lines to draw from the rows of the game board
   local lines = {}
@@ -61,7 +79,7 @@ function Game:full_redraw()
   end
 
   -- Draw the board
-  api.nvim_buf_set_lines(self.buf, 0, -1, false, lines)
+  api.nvim_buf_set_lines(self.buf, 3, 3 + #lines, false, lines)
 
   -- Place extended marks for each board square
   i = 1
@@ -85,7 +103,7 @@ function Game:full_redraw()
       self.board_extmarks[i] = api.nvim_buf_set_extmark(
         self.buf,
         namespace,
-        y,
+        3 + y,
         x,
         {
           id = self.board_extmarks[i],
@@ -97,9 +115,6 @@ function Game:full_redraw()
     end
   end
 
-  -- Make room for the game status information and draw it
-  api.nvim_buf_set_lines(self.buf, 0, 0, true, { "", "", "" })
-  self:redraw_status()
   self:enable_drawing(false)
 end
 
@@ -150,6 +165,7 @@ function M.new_game(width, height, mine_count)
   game.buf = buf
   game.board = board_mod.new_board(width, height)
   game.board_extmarks = {}
+  game.state = M.GAME_NOT_STARTED
 
   game:full_redraw()
   M.games[buf] = game
@@ -157,7 +173,11 @@ function M.new_game(width, height, mine_count)
 end
 
 function M.cleanup_game(buf)
-  M.games[buf].redraw_timer:stop()
+  local game = M.games[buf]
+  if game.redraw_timer then
+    game.redraw_timer:stop()
+  end
+
   M.games[buf] = nil
 end
 
@@ -174,6 +194,10 @@ end
 
 function M.place_flag(buf, x, y)
   local game, x, y = get_action_args(buf, x, y)
+
+  if game.state ~= M.GAME_STARTED then
+    return
+  end
 
   local i = game.board:index(x, y)
   local state = game.board.state
@@ -199,8 +223,9 @@ function M.reveal_square(buf, x, y)
     return
   end
 
-  if not game.start_time then
+  if game.state == M.GAME_NOT_STARTED then
     board:place_mines(x, y, game.mine_count)
+    game.state = M.GAME_STARTED
     game.start_time = uv.hrtime()
 
     game.redraw_timer = uv.new_timer()
@@ -213,6 +238,8 @@ function M.reveal_square(buf, x, y)
         game:enable_drawing(false)
       end)
     )
+  elseif game.state ~= M.GAME_STARTED then
+    return
   end
 
   -- fill-reveal surrounding (unflagged) squares with a danger score of 0
