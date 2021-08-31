@@ -20,11 +20,9 @@ function M.new_game(width, height, mine_count)
   if not ui then
     return nil
   end
-  ui:redraw_all()
-  ui:focus_board()
-  M.games[ui.buf] = game
   game.ui = ui
 
+  M.games[ui.buf] = game
   return game
 end
 

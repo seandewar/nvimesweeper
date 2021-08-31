@@ -229,6 +229,8 @@ function M.new_ui(game)
   ui.board_extmarks = {}
   ui.redraw_status_timer = uv.new_timer()
 
+  ui:redraw_all()
+  ui:focus_board()
   return ui
 end
 
