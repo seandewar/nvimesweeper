@@ -31,13 +31,6 @@ function M.new_game(width, height, mine_count)
   return game
 end
 
-function M.cleanup_game(buf)
-  local game = M.games[buf]
-  if game then
-    game:cleanup()
-  end
-end
-
 local function get_action_args(buf, x, y)
   buf = buf or api.nvim_get_current_buf()
   local game = M.games[buf]

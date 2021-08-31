@@ -119,10 +119,10 @@ function Ui:redraw_board(x1, y1, x2, y2)
   self:enable_modification(true)
   local row = {}
   for y = y1, y2 do
-    local row_i = self.game.board:index(x1, y)
+    local i = self.game.board:index(x1, y)
     for x = x1, x2 do
-      local ox = x - x1
-      row[ox + 1] = self:board_square_char(row_i + ox)
+      row[x - x1 + 1] = self:board_square_char(i)
+      i = i + 1
     end
 
     local oy = y - y1
@@ -266,7 +266,7 @@ function M.new_ui(game)
     vim.cmd(
       string.format(
         "autocmd %s <buffer=%d> ++once "
-          .. "lua require('nvimesweeper.game').cleanup_game(%d)",
+          .. "lua require('nvimesweeper.game').games[%d]:cleanup()",
         event,
         buf,
         buf
