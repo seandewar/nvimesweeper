@@ -37,11 +37,12 @@ function Ui:redraw_status()
   if game.state == game_state.GAME_NOT_STARTED then
     status = "Game will begin once you reveal a square..."
   elseif game.state == game_state.GAME_STARTED then
-    status = time_string()
-      .. "\tFlagged: "
-      .. game.board.flag_count
-      .. "/"
-      .. game.board.mine_count
+    status = string.format(
+      "%s\tFlagged: %d/%d",
+      time_string(),
+      game.board.flag_count,
+      game.board.mine_count
+    )
   elseif game.state == game_state.GAME_WON then
     status = "Congratulations, you win! " .. time_string(true)
   elseif game.state == game_state.GAME_LOST then
@@ -52,44 +53,72 @@ function Ui:redraw_status()
   self:enable_drawing(false)
 end
 
+function Ui:board_square_char(i)
+  local game_over = game_state.is_game_over(self.game.state)
+  local state = self.game.board.state[i]
+  local mine = self.game.board.mines[i]
+  local char = " "
+
+  if
+    mine
+    and (
+      state == board_mod.SQUARE_REVEALED
+      or (game_over and state ~= board_mod.SQUARE_FLAGGED)
+    )
+  then
+    char = "*"
+  elseif state == board_mod.SQUARE_FLAGGED then
+    char = (not game_over or (game_over and mine)) and "!" or "X"
+  elseif state == board_mod.SQUARE_MAYBE then
+    char = "?"
+  elseif state == board_mod.SQUARE_REVEALED then
+    local danger = self.game.board.danger[i]
+    if danger > 0 then
+      char = tostring(danger)
+    end
+  end
+
+  return char
+end
+
+function Ui:board_square_hl_group(i)
+  local game_over = game_state.is_game_over(self.game.state)
+  local state = self.game.board.state[i]
+  local hl_group = "NvimesweeperUnrevealed"
+
+  if game_over and self.game.board.mines[i] then
+    if state == board_mod.SQUARE_REVEALED then
+      hl_group = "NvimesweeperTriggeredMine"
+    elseif state == board_mod.SQUARE_FLAGGED then
+      hl_group = "NvimesweeperFlag"
+    else
+      hl_group = "NvimesweeperMine"
+    end
+  elseif state == board_mod.SQUARE_FLAGGED then
+    hl_group = game_over and "NvimesweeperFlagWrong" or "NvimesweeperFlag"
+  elseif state == board_mod.SQUARE_MAYBE then
+    hl_group = "NvimesweeperMaybe"
+  elseif state == board_mod.SQUARE_REVEALED then
+    local danger = self.game.board.danger[i]
+    hl_group = danger > 0 and ("NvimesweeperDanger" .. danger)
+      or "NvimesweeperRevealed"
+  end
+
+  return hl_group
+end
+
 function Ui:redraw_board()
   self:enable_drawing(true)
-  local game = self.game
-  local game_over = game_state.is_game_over(game.state)
 
   -- Create the lines to draw from the rows of the game board
   local lines = {}
   local i = 1
-  for y = 0, game.board.height - 1 do
+  for y = 0, self.game.board.height - 1 do
     local row = {}
-    for x = 0, game.board.width - 1 do
-      local state = game.board.state[i]
-      local mine = game.board.mines[i]
-      local char = " "
-
-      if
-        mine
-        and (
-          state == board_mod.SQUARE_REVEALED
-          or (game_over and state ~= board_mod.SQUARE_FLAGGED)
-        )
-      then
-        char = "*"
-      elseif state == board_mod.SQUARE_FLAGGED then
-        char = (not game_over or (game_over and mine)) and "!" or "X"
-      elseif state == board_mod.SQUARE_MAYBE then
-        char = "?"
-      elseif state == board_mod.SQUARE_REVEALED then
-        local danger = game.board.danger[i]
-        if danger > 0 then
-          char = tostring(danger)
-        end
-      end
-
-      row[x + 1] = char
+    for x = 0, self.game.board.width - 1 do
+      row[x + 1] = self:board_square_char(i)
       i = i + 1
     end
-
     lines[y + 1] = table.concat(row)
   end
 
@@ -98,34 +127,13 @@ function Ui:redraw_board()
 
   -- Place extended marks for each board square
   i = 1
-  for y = 0, game.board.height - 1 do
-    for x = 0, game.board.width - 1 do
-      local state = game.board.state[i]
-      local hl_group = "NvimesweeperUnrevealed"
-
-      if game_over and game.board.mines[i] then
-        if state == board_mod.SQUARE_REVEALED then
-          hl_group = "NvimesweeperTriggeredMine"
-        elseif state == board_mod.SQUARE_FLAGGED then
-          hl_group = "NvimesweeperFlag"
-        else
-          hl_group = "NvimesweeperMine"
-        end
-      elseif state == board_mod.SQUARE_FLAGGED then
-        hl_group = game_over and "NvimesweeperFlagWrong" or "NvimesweeperFlag"
-      elseif state == board_mod.SQUARE_MAYBE then
-        hl_group = "NvimesweeperMaybe"
-      elseif state == board_mod.SQUARE_REVEALED then
-        local danger = game.board.danger[i]
-        hl_group = danger > 0 and ("NvimesweeperDanger" .. danger)
-          or "NvimesweeperRevealed"
-      end
-
+  for y = 0, self.game.board.height - 1 do
+    for x = 0, self.game.board.width - 1 do
       self.board_extmarks[i] =
         api.nvim_buf_set_extmark(self.buf, ns, 2 + y, x, {
           id = self.board_extmarks[i],
           end_col = x + 1,
-          hl_group = hl_group,
+          hl_group = self:board_square_hl_group(i),
         })
       i = i + 1
     end
