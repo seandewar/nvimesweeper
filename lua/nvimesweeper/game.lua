@@ -20,11 +20,11 @@ function M.new_game(width, height, mine_count)
   if not ui then
     return nil
   end
-  game.ui = ui
   ui:redraw_all()
   ui:focus_board()
-
   M.games[ui.buf] = game
+  game.ui = ui
+
   return game
 end
 
@@ -84,15 +84,6 @@ function M.reveal(buf, x, y)
     return false
   end
 
-  local function should_reveal(state)
-    return state == board_mod.SQUARE_NONE or state == board_mod.SQUARE_MAYBE
-  end
-
-  local state = game.board.state[i]
-  if not should_reveal(state) then
-    return false
-  end
-
   if game.state == game_state.GAME_NOT_STARTED then
     game.board:place_mines(i)
     game.state = game_state.GAME_STARTED
@@ -102,27 +93,8 @@ function M.reveal(buf, x, y)
     return false
   end
 
-  -- fill-reveal surrounding squares with 0 danger score
-  local needs_reveal = { { x, y } }
-  while #needs_reveal > 0 do
-    local top = needs_reveal[#needs_reveal]
-    local tx, ty = top[1], top[2]
-    local ti = game.board:index(tx, ty)
-    needs_reveal[#needs_reveal] = nil
-
-    if ti and should_reveal(game.board.state[ti]) then
-      game.board:reveal_square(ti)
-      if game.board.danger[ti] == 0 then
-        for ay = ty - 1, ty + 1 do
-          for ax = tx - 1, tx + 1 do
-            local ai = game.board:index(ax, ay)
-            if ai and should_reveal(game.board.state[ai]) then
-              needs_reveal[#needs_reveal + 1] = { ax, ay }
-            end
-          end
-        end
-      end
-    end
+  if not game.board:fill_reveal(x, y) then
+    return false
   end
 
   if game.board.mines[i] then

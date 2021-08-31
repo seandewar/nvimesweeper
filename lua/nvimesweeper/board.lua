@@ -72,15 +72,48 @@ function Board:flag_unrevealed(i, new_state)
   return true
 end
 
+function M.is_revealable(state)
+  return state == M.SQUARE_NONE or state == M.SQUARE_MAYBE
+end
+
 function Board:reveal_square(i)
   local state = self.state[i]
-  if state == M.SQUARE_REVEALED then
+  if not M.is_revealable(state) then
     return false
   end
 
   self.state[i] = M.SQUARE_REVEALED
   self.unrevealed_count = self.unrevealed_count - 1
   return true
+end
+
+function Board:fill_reveal(x, y)
+  local i = self:index(x, y)
+  if not i then
+    return false
+  end
+
+  -- fill-reveal surrounding squares with 0 danger score
+  local prev_unrevealed_count = self.unrevealed_count
+  local needs_reveal = { { x, y, i } }
+  while #needs_reveal > 0 do
+    local top = needs_reveal[#needs_reveal]
+    local tx, ty, ti = top[1], top[2], top[3]
+    needs_reveal[#needs_reveal] = nil
+
+    if self:reveal_square(ti) and self.danger[ti] == 0 then
+      for ay = ty - 1, ty + 1 do
+        for ax = tx - 1, tx + 1 do
+          local ai = self:index(ax, ay)
+          if ai and M.is_revealable(self.state[ai]) then
+            needs_reveal[#needs_reveal + 1] = { ax, ay, ai }
+          end
+        end
+      end
+    end
+  end
+
+  return self.unrevealed_count < prev_unrevealed_count
 end
 
 function M.new_board(width, height)
