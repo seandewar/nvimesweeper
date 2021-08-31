@@ -25,4 +25,12 @@ function M.nnoremap(buf, lhs, rhs)
   api.nvim_buf_set_keymap(buf, "n", lhs, rhs, { noremap = true, silent = true })
 end
 
+function M.tbl_rep(value, count)
+  local result = {}
+  for i = 1, count do
+    result[i] = value
+  end
+  return result
+end
+
 return M

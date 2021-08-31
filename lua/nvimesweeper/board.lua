@@ -87,10 +87,10 @@ function Board:reveal_square(i)
   return true
 end
 
-function Board:fill_reveal(x, y)
+function Board:fill_reveal(x, y, reveal_cb)
   local i = self:index(x, y)
   if not i then
-    return false
+    return 0
   end
 
   -- fill-reveal surrounding squares with 0 danger score
@@ -101,7 +101,11 @@ function Board:fill_reveal(x, y)
     local tx, ty, ti = top[1], top[2], top[3]
     needs_reveal[#needs_reveal] = nil
 
-    if self:reveal_square(ti) and self.danger[ti] == 0 then
+    local ok = self:reveal_square(ti)
+    if ok and reveal_cb then
+      reveal_cb(tx, ty, ti)
+    end
+    if ok and self.danger[ti] == 0 then 
       for ay = ty - 1, ty + 1 do
         for ax = tx - 1, tx + 1 do
           local ai = self:index(ax, ay)
@@ -113,7 +117,7 @@ function Board:fill_reveal(x, y)
     end
   end
 
-  return self.unrevealed_count < prev_unrevealed_count
+  return prev_unrevealed_count - self.unrevealed_count
 end
 
 function M.new_board(width, height)

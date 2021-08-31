@@ -51,7 +51,7 @@ local function get_action_args(buf, x, y)
   return game, x, y, game.board:index(x, y)
 end
 
--- cycles NONE -> FLAGGED -> MAYBE if state == nil
+-- cycles NONE -> FLAGGED -> MAYBE if state == nil; otherwise toggle state
 function M.place_marker(new_state, buf, x, y)
   local game, x, y, i = get_action_args(buf, x, y)
   if game_state.is_game_over(game.state) or not i then
@@ -73,7 +73,8 @@ function M.place_marker(new_state, buf, x, y)
 
   local ok = game.board:flag_unrevealed(i, new_state)
   if ok then
-    game.ui:redraw_all() -- TODO: redraw only the status bar and changed square
+    game.ui:redraw_status()
+    game.ui:redraw_board(x, y, x, y)
   end
 
   return ok
@@ -95,7 +96,16 @@ function M.reveal(buf, x, y)
     game.ui:start_status_redraw()
   end
 
-  if not game.board:fill_reveal(x, y) then
+  local changed_x1, changed_y1 = game.board.width, game.board.height
+  local changed_x2, changed_y2 = 0, 0
+
+  local function reveal_cb(sx, sy, _)
+    changed_x1 = math.min(changed_x1, sx)
+    changed_y1 = math.min(changed_y1, sy)
+    changed_x2 = math.max(changed_x2, sx)
+    changed_y2 = math.max(changed_y2, sy)
+  end
+  if game.board:fill_reveal(x, y, reveal_cb) == 0 then
     return false
   end
 
@@ -104,12 +114,15 @@ function M.reveal(buf, x, y)
   elseif game.board.unrevealed_count == game.board.mine_count then
     game.state = game_state.GAME_WON
   end
+
+  game.ui:redraw_status()
   if game_state.is_game_over(game.state) then
     game.ui:stop_status_redraw()
+    game.ui:redraw_board()
+  else
+    game.ui:redraw_board(changed_x1, changed_y1, changed_x2, changed_y2)
   end
 
-  -- TODO: redraw just the status bar and the changed square(s)
-  game.ui:redraw_all()
   return true
 end
 
