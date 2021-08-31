@@ -13,6 +13,9 @@ productive again._
 Install it using your favourite package manager like any other plugin, then run
 `:Nvimesweeper` and pray that it works properly, I guess.
 
+_(Also, you may want to seed the random number generator using `:lua
+math.randomseed(os.time())` or something for now)_
+
 Press `<Space>` to cycle between marking a square as flagged (`!`) or as TODO
 (`?`).
 
