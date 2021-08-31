@@ -5,6 +5,10 @@ local M = {
   SQUARE_REVEALED = 3,
 }
 
+function M.is_revealable(state)
+  return state == M.SQUARE_NONE or state == M.SQUARE_MAYBE
+end
+
 local Board = {}
 
 function Board:is_valid(x, y)
@@ -70,10 +74,6 @@ function Board:flag_unrevealed(i, new_state)
 
   self.state[i] = new_state
   return true
-end
-
-function M.is_revealable(state)
-  return state == M.SQUARE_NONE or state == M.SQUARE_MAYBE
 end
 
 function Board:reveal_square(i)

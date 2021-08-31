@@ -1,7 +1,7 @@
 local api, uv = vim.api, vim.loop
 
-local board_mod = require "nvimesweeper.board"
 local game_state = require "nvimesweeper.game_state"
+local board_mod = require "nvimesweeper.board"
 local ui_mod = require "nvimesweeper.ui"
 
 local M = {
@@ -9,6 +9,11 @@ local M = {
 }
 
 local Game = {}
+
+function Game:cleanup()
+  self.ui:stop_status_redraw()
+  M.games[self.ui.buf] = nil
+end
 
 function M.new_game(width, height, mine_count)
   local game = vim.deepcopy(Game)
@@ -29,8 +34,7 @@ end
 function M.cleanup_game(buf)
   local game = M.games[buf]
   if game then
-    game.ui:stop_status_redraw()
-    M.games[buf] = nil
+    game:cleanup()
   end
 end
 
@@ -39,31 +43,31 @@ local function get_action_args(buf, x, y)
     buf = api.nvim_get_current_buf()
     local pos = api.nvim_win_get_cursor(0)
     x = pos[2]
-    y = pos[1] - 1 -- return row is 1-indexed
+    y = pos[1] - 1 -- returned row is 1-indexed
     y = y - 2 -- HACK: get position from extmark instead
   end
 
-  return M.games[buf], x, y
+  local game = M.games[buf]
+  return game, x, y, game and game.board:index(x, y) or nil
 end
 
-function M.cycle_marker(buf, x, y)
-  local game, x, y = get_action_args(buf, x, y)
-  if game.state ~= game_state.GAME_STARTED then
-    return false
-  end
-
-  local i = game.board:index(x, y)
-  if not i then
+-- Cycles NONE -> FLAGGED -> MAYBE if state == nil
+function M.place_marker(new_state, buf, x, y)
+  local game, x, y, i = get_action_args(buf, x, y)
+  if game_state.is_game_over(game.state) or not i then
     return false
   end
 
   local state = game.board.state[i]
-  local new_state
-  if state == board_mod.SQUARE_NONE then
-    new_state = board_mod.SQUARE_FLAGGED
-  elseif state == board_mod.SQUARE_FLAGGED then
-    new_state = board_mod.SQUARE_MAYBE
-  else
+  if not new_state then
+    if state == board_mod.SQUARE_NONE then
+      new_state = board_mod.SQUARE_FLAGGED
+    elseif state == board_mod.SQUARE_FLAGGED then
+      new_state = board_mod.SQUARE_MAYBE
+    else
+      new_state = board_mod.SQUARE_NONE
+    end
+  elseif state == new_state then
     new_state = board_mod.SQUARE_NONE
   end
 
@@ -76,19 +80,19 @@ function M.cycle_marker(buf, x, y)
 end
 
 function M.reveal(buf, x, y)
-  local game, x, y = get_action_args(buf, x, y)
-  local i = game.board:index(x, y)
-  if not i then
+  local game, x, y, i = get_action_args(buf, x, y)
+  if game_state.is_game_over(game.state) or not i then
     return false
   end
 
-  if game.state == game_state.GAME_NOT_STARTED then
+  local state = game.board.state[i]
+  if
+    game.state == game_state.GAME_NOT_STARTED and board_mod.is_revealable(state)
+  then
     game.board:place_mines(i)
     game.state = game_state.GAME_STARTED
     game.start_time = uv.hrtime()
     game.ui:start_status_redraw()
-  elseif game.state ~= game_state.GAME_STARTED then
-    return false
   end
 
   if not game.board:fill_reveal(x, y) then

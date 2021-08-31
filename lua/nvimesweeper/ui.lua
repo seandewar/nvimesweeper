@@ -6,9 +6,8 @@ local game_state = require "nvimesweeper.game_state"
 local util = require "nvimesweeper.util"
 local error = util.error
 
+local ns = api.nvim_create_namespace "nvimesweeper"
 local M = {}
-
-local namespace = api.nvim_create_namespace "nvimesweeper"
 
 local Ui = {}
 
@@ -122,17 +121,12 @@ function Ui:redraw_board()
           or "NvimesweeperRevealed"
       end
 
-      self.board_extmarks[i] = api.nvim_buf_set_extmark(
-        self.buf,
-        namespace,
-        2 + y,
-        x,
-        {
+      self.board_extmarks[i] =
+        api.nvim_buf_set_extmark(self.buf, ns, 2 + y, x, {
           id = self.board_extmarks[i],
           end_col = x + 1,
           hl_group = hl_group,
-        }
-      )
+        })
       i = i + 1
     end
   end
@@ -147,10 +141,12 @@ end
 
 function Ui:start_status_redraw()
   self.redraw_status_timer:start(
-    0,
+    500,
     500,
     vim.schedule_wrap(function()
-      self:redraw_status()
+      if api.nvim_buf_is_loaded(self.buf) then
+        self:redraw_status()
+      end
     end)
   )
 end
@@ -162,7 +158,7 @@ end
 function Ui:focus_board()
   local board_pos = api.nvim_buf_get_extmark_by_id(
     self.buf,
-    namespace,
+    ns,
     self.board_extmarks[1],
     {}
   )
@@ -205,7 +201,26 @@ function M.new_ui(game)
   util.nnoremap(
     buf,
     "<Space>",
-    "<Cmd>lua require('nvimesweeper.game').cycle_marker()<CR>"
+    "<Cmd>lua require('nvimesweeper.game').place_marker()<CR>"
+  )
+  util.nnoremap(
+    buf,
+    "x",
+    "<Cmd>lua require('nvimesweeper.game').reveal()<CR>"
+  )
+  util.nnoremap(
+    buf,
+    "!",
+    "<Cmd>lua require('nvimesweeper.game').place_marker("
+      .. board_mod.SQUARE_FLAGGED
+      .. ")<CR>"
+  )
+  util.nnoremap(
+    buf,
+    "?",
+    "<Cmd>lua require('nvimesweeper.game').place_marker("
+      .. board_mod.SQUARE_MAYBE
+      .. ")<CR>"
   )
 
   local function define_cleanup_autocmd(event)
