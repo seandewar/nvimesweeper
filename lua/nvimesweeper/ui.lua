@@ -141,8 +141,8 @@ end
 
 function Ui:start_status_redraw()
   self.redraw_status_timer:start(
-    500,
-    500,
+    0,
+    1000,
     vim.schedule_wrap(function()
       if api.nvim_buf_is_loaded(self.buf) then
         self:redraw_status()
