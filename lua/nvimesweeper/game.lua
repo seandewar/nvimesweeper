@@ -39,19 +39,19 @@ function M.cleanup_game(buf)
 end
 
 local function get_action_args(buf, x, y)
-  if not buf then
-    buf = api.nvim_get_current_buf()
-    local pos = api.nvim_win_get_cursor(0)
-    x = pos[2]
-    y = pos[1] - 1 -- returned row is 1-indexed
-    y = y - 2 -- HACK: get position from extmark instead
+  buf = buf or api.nvim_get_current_buf()
+  local game = M.games[buf]
+  if not game then
+    return nil
   end
 
-  local game = M.games[buf]
-  return game, x, y, game and game.board:index(x, y) or nil
+  if not x then
+    x, y = game.ui:cursor_board_pos()
+  end
+  return game, x, y, game.board:index(x, y)
 end
 
--- Cycles NONE -> FLAGGED -> MAYBE if state == nil
+-- cycles NONE -> FLAGGED -> MAYBE if state == nil
 function M.place_marker(new_state, buf, x, y)
   local game, x, y, i = get_action_args(buf, x, y)
   if game_state.is_game_over(game.state) or not i then

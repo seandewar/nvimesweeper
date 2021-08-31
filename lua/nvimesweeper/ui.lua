@@ -155,15 +155,21 @@ function Ui:stop_status_redraw()
   self.redraw_status_timer:stop()
 end
 
-function Ui:focus_board()
-  local board_pos = api.nvim_buf_get_extmark_by_id(
+function Ui:board_square_pos(i)
+  local pos = api.nvim_buf_get_extmark_by_id(
     self.buf,
     ns,
-    self.board_extmarks[1],
+    self.board_extmarks[i],
     {}
   )
-  board_pos[1] = board_pos[1] + 1 -- row is 0-indexed
-  api.nvim_win_set_cursor(0, board_pos)
+  pos[1] = pos[1] + 1
+  return pos
+end
+
+function Ui:cursor_board_pos()
+  local cursor_pos = api.nvim_win_get_cursor(0)
+  local board_pos = self:board_square_pos(1)
+  return cursor_pos[2] - board_pos[2], cursor_pos[1] - board_pos[1]
 end
 
 function M.new_ui(game)
@@ -183,7 +189,6 @@ function M.new_ui(game)
       buf
     )
   )
-  api.nvim_buf_set_option(buf, "modifiable", false)
 
   local ok, _ = pcall(vim.cmd, "tab sbuffer " .. buf)
   if not ok then
@@ -193,6 +198,7 @@ function M.new_ui(game)
   end
 
   api.nvim_win_set_option(0, "wrap", false)
+
   util.nnoremap(
     buf,
     "<CR>",
@@ -203,11 +209,8 @@ function M.new_ui(game)
     "<Space>",
     "<Cmd>lua require('nvimesweeper.game').place_marker()<CR>"
   )
-  util.nnoremap(
-    buf,
-    "x",
-    "<Cmd>lua require('nvimesweeper.game').reveal()<CR>"
-  )
+
+  util.nnoremap(buf, "x", "<Cmd>lua require('nvimesweeper.game').reveal()<CR>")
   util.nnoremap(
     buf,
     "!",
@@ -245,7 +248,7 @@ function M.new_ui(game)
   ui.redraw_status_timer = uv.new_timer()
 
   ui:redraw_all()
-  ui:focus_board()
+  api.nvim_win_set_cursor(0, ui:board_square_pos(1))
   return ui
 end
 
