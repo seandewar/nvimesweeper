@@ -234,6 +234,7 @@ function M.new_ui(game)
     return nil
   end
   api.nvim_win_set_option(0, "wrap", false)
+  api.nvim_win_set_option(0, "list", false)
 
   util.nnoremap(
     buf,
