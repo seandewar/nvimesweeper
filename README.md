@@ -1,5 +1,3 @@
-# Nvimesweeper
-
 ![Banner Image](./media/nvimesweeper.png)
 
 ![Screenshot](./media/screenshot.png)
