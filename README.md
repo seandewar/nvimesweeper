@@ -2,6 +2,8 @@
 
 ![Banner Image](./media/nvimesweeper.png)
 
+![Screenshot](./media/screenshot.png)
+
 Play Minesweeper in Neovim: because if Emacs has taught us one thing, it's that
 text editors are for gaming!
 
