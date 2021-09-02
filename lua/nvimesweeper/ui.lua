@@ -15,6 +15,15 @@ function Ui:enable_modification(enable)
   api.nvim_buf_set_option(self.buf, "modifiable", enable)
 end
 
+local function centering_left_pad(ui, len)
+  if not ui.centered then
+    return 0
+  end
+
+  local pad = (api.nvim_win_get_width(0) - len) / 2
+  return math.floor(math.max(0, pad))
+end
+
 function Ui:redraw_status()
   local function time_string(show_ms)
     local nanoseconds = uv.hrtime() - self.game.start_time
@@ -26,7 +35,6 @@ function Ui:redraw_status()
       local milliseconds = math.floor(nanoseconds / 1000000)
       time = string.format("%s.%03d", time, milliseconds % 1000)
     end
-
     return time
   end
 
@@ -46,6 +54,8 @@ function Ui:redraw_status()
   elseif state == game_state.GAME_LOST then
     status = "KA-BOOM! You explode... " .. time_string(true)
   end
+
+  status = string.rep(" ", centering_left_pad(self, #status)) .. status
 
   self:enable_modification(true)
   api.nvim_buf_set_lines(self.buf, 0, 2, false, { status, "" })
@@ -107,10 +117,8 @@ function Ui:board_square_hl_group(i)
 end
 
 function Ui:redraw_board(x1, y1, x2, y2)
-  x1 = x1 or 0
-  y1 = y1 or 0
-  x2 = x2 or self.game.board.width - 1
-  y2 = y2 or self.game.board.height - 1
+  x1, y1 = x1 or 0, y1 or 0
+  x2, y2 = x2 or self.game.board.width - 1, y2 or self.game.board.height - 1
 
   local top_left_i = self.game.board:index(x1, y1)
   local top_left_pos = self:board_square_pos(top_left_i)
@@ -164,13 +172,14 @@ function Ui:full_redraw()
 
   -- usually, only the changed area of the board is updated, which requires the
   -- lines to already exist, so create filler lines to fit the entire board
-  local line = string.rep(" ", self.game.board.width)
+  local left_pad = centering_left_pad(self, self.game.board.width)
+  local line = string.rep(" ", left_pad + self.game.board.width)
   local lines = util.tbl_rep(line, self.game.board.height)
   self:enable_modification(true)
   api.nvim_buf_set_lines(self.buf, -1, -1, false, lines)
 
   -- place an extmark for the board's top-left corner so it knows where to draw
-  self.board_extmarks[1] = api.nvim_buf_set_extmark(self.buf, ns, 2, 0, {
+  self.board_extmarks[1] = api.nvim_buf_set_extmark(self.buf, ns, 2, left_pad, {
     id = self.board_extmarks[1],
   })
   self:redraw_board()
@@ -209,11 +218,96 @@ function Ui:cursor_board_pos()
   return cursor_pos[2] - board_pos[2], cursor_pos[1] - board_pos[1]
 end
 
-function M.new_ui(game)
+local function define_buf_autocmd(buf, event, rhs)
+  vim.cmd(string.format("autocmd %s <buffer=%d> ++once %s", event, buf, rhs))
+end
+
+function M.schedule_buf_delete(buf)
+  vim.schedule(function()
+    if api.nvim_buf_is_valid(buf) then
+      api.nvim_buf_delete(buf, { force = true })
+    end
+  end)
+end
+
+local function create_window(ui, float_opts)
+  local win
+  if float_opts then
+    win = api.nvim_open_win(ui.buf, true, {
+      relative = "editor",
+      width = float_opts.width,
+      height = float_opts.height,
+      row = math.max(0, math.floor((vim.go.lines - float_opts.height) / 2) - 1),
+      col = math.floor((vim.go.columns - float_opts.width) / 2),
+      style = "minimal",
+      border = "single",
+    })
+    win = win ~= 0 and win or nil
+  else
+    local ok, _ = pcall(vim.cmd, "tab sbuffer " .. ui.buf)
+    if ok then
+      win = api.nvim_get_current_win()
+    end
+  end
+
+  if not win then
+    return false
+  end
+
+  if float_opts then
+    api.nvim_buf_set_option(ui.buf, "bufhidden", "wipe")
+
+    -- Schedule the deletion. NOTE: if we don't schedule, this can cause issues
+    -- when starting a new game in a float if we are already playing a game in a
+    -- different float: both floats will be closed.
+    --
+    -- Backstory: this is inherited from Vim's windowing behaviour; the new
+    -- float briefly edits the current buffer before it edits its intended
+    -- buffer (similiar to :split, then :buffer <buf>). The current buffer's
+    -- WinLeave autocmd (intended for the previous float) will delete the
+    -- buffer while the new float is still momentarily editing it, causing both
+    -- floats to close! By delaying the deletion, we allow the new float to
+    -- switch to its intended buffer first.
+    --
+    -- Funnily enough, this uncovered a crash in nvim_open_win() when I used
+    -- BufLeave instead: https://github.com/neovim/neovim/pull/15549 -- So, you
+    -- can say this silly Minesweeper clone helped improve Neovim... :P
+    define_buf_autocmd(
+      ui.buf,
+      "WinLeave",
+      "lua require('nvimesweeper.ui').schedule_buf_delete(" .. ui.buf .. ")"
+    )
+  else
+    -- float "minimal" style already sets these
+    api.nvim_win_set_option(win, "list", false)
+    api.nvim_win_set_option(win, "spell", false)
+  end
+  ui.centered = float_opts ~= nil
+
+  api.nvim_win_set_option(win, "wrap", false)
+  return true
+end
+
+function M.new_ui(game, open_tab)
   local buf = api.nvim_create_buf(true, true)
   if buf == 0 then
     error "failed to create game buffer!"
-    return nil
+  end
+
+  local ui = vim.deepcopy(Ui)
+  ui.buf = buf
+  ui.game = game
+  ui.board_extmarks = {}
+  ui.redraw_status_timer = uv.new_timer()
+
+  if
+    not create_window(ui, not open_tab and {
+      width = math.max(45, game.board.width),
+      height = game.board.height + 2,
+    } or nil)
+  then
+    api.nvim_buf_delete(buf, { force = true })
+    error "failed to open game window!"
   end
 
   api.nvim_buf_set_name(
@@ -226,15 +320,6 @@ function M.new_ui(game)
       buf
     )
   )
-
-  local ok, _ = pcall(vim.cmd, "tab sbuffer " .. buf)
-  if not ok then
-    error "failed to open game window!"
-    api.nvim_buf_delete(buf, { force = true })
-    return nil
-  end
-  api.nvim_win_set_option(0, "wrap", false)
-  api.nvim_win_set_option(0, "list", false)
 
   util.nnoremap(
     buf,
@@ -263,30 +348,17 @@ function M.new_ui(game)
       .. ")<CR>"
   )
 
-  local function define_cleanup_autocmd(event)
-    vim.cmd(
-      string.format(
-        "autocmd %s <buffer=%d> ++once "
-          .. "lua require('nvimesweeper.game').games[%d]:cleanup()",
-        event,
-        buf,
-        buf
-      )
-    )
-  end
-  define_cleanup_autocmd "BufDelete"
-  define_cleanup_autocmd "VimLeavePre"
+  local cleanup_cmd = "lua require('nvimesweeper.game').games["
+    .. buf
+    .. "]:cleanup()"
+  define_buf_autocmd(buf, "BufDelete", cleanup_cmd)
+  define_buf_autocmd(buf, "VimLeavePre", cleanup_cmd)
 
-  local ui = vim.deepcopy(Ui)
-  ui.buf = buf
-  ui.game = game
-  ui.board_extmarks = {}
-  ui.redraw_status_timer = uv.new_timer()
   ui:full_redraw()
-
   local board_pos = ui:board_square_pos(1)
   board_pos[1] = board_pos[1] + 1 -- nvim_win_set_cursor takes a 1-indexed row
   api.nvim_win_set_cursor(0, board_pos)
+
   return ui
 end
 

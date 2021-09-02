@@ -9,11 +9,56 @@ local M = {
     width = 40,
     height = 12,
     mines = 60,
+    tab = false,
   },
 }
 
+local opt_types = {
+  width = "number",
+  height = "number",
+  mines = "number",
+  tab = "boolean",
+}
+
+local function convert(opt, value, to_type)
+  local from_type = type(value)
+  if from_type == to_type then
+    return value
+  end
+
+  if to_type == "number" then
+    return tonumber(value)
+  elseif to_type == "boolean" then
+    if from_type == "string" then
+      if value == "true" then
+        return true
+      elseif value == "false" then
+        return false
+      end
+    end
+
+    value = tonumber(value)
+    return value == nil and nil or value ~= 0
+  end
+
+  return nil
+end
+
 function M.play(opts)
   opts = vim.tbl_extend("force", M.default_opts, opts)
+
+  for opt, value in pairs(opts) do
+    local correct_type = opt_types[opt]
+    if not correct_type then
+      error('unknown option "' .. opt .. '"')
+    end
+
+    value = convert(opt, value, correct_type)
+    if value == nil then
+      error(opt .. " should be a " .. correct_type .. "!")
+    end
+    opts[opt] = value
+  end
 
   if
     opts.width <= 0
@@ -24,7 +69,6 @@ function M.play(opts)
     or not util.is_integer(opts.mines)
   then
     error "board size and mine count must be positive integers!"
-    return false
   end
 
   local size = opts.width * opts.height
@@ -33,52 +77,36 @@ function M.play(opts)
       "way too easy; your first chosen square is always safe, so this would be "
         .. "a guaranteed win..."
     )
-    return false
   elseif opts.mines >= size then
-    error "impossible game; way too many mines!"
-    return false
+    error "impossible game; too many mines!"
   end
 
-  game.new_game(opts.width, opts.height, opts.mines)
-  return true
+  game.new_game(opts.width, opts.height, opts.mines, opts.tab)
 end
 
 function M.play_cmd(args)
-  local opts = {}
-
   args = vim.split(args, " ")
+  local opts = {}
   for _, arg in ipairs(args) do
     if arg ~= "" then
-      local opt, value = string.match(arg, "(.+)=(.+)")
+      local opt, equal, value_str = string.match(arg, "([^=]+)(=?)(.*)")
       if not opt then
         error "malformed arguments!"
-        return false
+      elseif equal == "" then
+        value_str = "true"
       end
-
-      opts[opt] = value
+      opts[opt] = value_str -- this will be converted by play()
     end
   end
 
-  local function input(str, opt)
-    local value = tonumber(opts[opt] or fn.input(str, M.default_opts[opt]))
-    if not value then
-      error(opt .. " must be a number!")
-      return false
-    end
-
-    opts[opt] = value
-    return true
+  local function input_nr(str, opt)
+    opts[opt] = opts[opt] or fn.input(str, M.default_opts[opt])
   end
 
-  if
-    not input("What board width to use? ", "width")
-    or not input("What board height to use? ", "height")
-    or not input("How many mines? ", "mines")
-  then
-    return false
-  end
-
-  return M.play(opts)
+  input_nr("Board width? ", "width")
+  input_nr("Board height? ", "height")
+  input_nr("How many mines? ", "mines")
+  M.play(opts)
 end
 
 return M

@@ -15,13 +15,13 @@ function Game:cleanup()
   M.games[self.ui.buf] = nil
 end
 
-function M.new_game(width, height, mine_count)
+function M.new_game(width, height, mine_count, open_tab)
   local game = vim.deepcopy(Game)
   game.state = game_state.GAME_NOT_STARTED
   game.board = board_mod.new_board(width, height)
   game.board.mine_count = mine_count
 
-  local ui = ui_mod.new_ui(game)
+  local ui = ui_mod.new_ui(game, open_tab)
   if not ui then
     return nil
   end
