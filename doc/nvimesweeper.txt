@@ -26,6 +26,12 @@ COMMANDS					*nvimesweeper-commands*
 					window, rather than a floating window.
 					Takes a boolean. Defaults to false.
 
+					Games that start in a tab page will
+					not end if the window is closed. This
+					allows you to return to your game by
+					finding its buffer with |:b|, for
+					example.
+
 			If the "width", "height" or "mines" arguments are
 			omitted, you will be prompted for their values on the
 			command-line instead. Other arguments will be set to
