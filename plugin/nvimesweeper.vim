@@ -10,7 +10,8 @@ endif
 let s:save_cpo = &cpoptions
 set cpoptions&vim
 
-command! -nargs=* Nvimesweeper lua require("nvimesweeper").play_cmd(<q-args>)
+command! -nargs=* -bar Nvimesweeper
+            \ lua require("nvimesweeper").play_cmd(<q-args>)
 
 function! s:DefineHighlights() abort
     highlight default NvimesweeperUnrevealed ctermbg=Grey
