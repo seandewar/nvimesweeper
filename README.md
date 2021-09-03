@@ -5,6 +5,8 @@
 Play Minesweeper in Neovim: because if Emacs has taught us anything, it's that
 text editors are for gaming!
 
+Requires Neovim version 0.5 or above.
+
 _Probably a work-in-progress until I decide I want to be productive again._
 
 ## How to play

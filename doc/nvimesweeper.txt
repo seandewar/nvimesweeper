@@ -88,10 +88,10 @@ Nvimesweeper represents the board state by displaying various symbols:
 						*nvimesweeper-danger*
 1 2 3 4 5 6 7 8 	These numbers represent the "danger level" of a
 			revealed square. It corresponds to the number of mines
-			directly adjacent to the square, in 8 directions.
+			directly adjacent to the square, in all 8 directions.
 
 						*nvimesweeper-mine*
-*			This is a revealed mine. If you reveal this, you lose.
+*			This is a mine. If you reveal this, you lose.
 			All mines are revealed at the end of a game, except
 			for correctly flagged mines.
 
