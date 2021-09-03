@@ -1,14 +1,15 @@
 local api, uv = vim.api, vim.loop
 
+local config_mod = require "nvimesweeper.config"
 local board_mod = require "nvimesweeper.board"
 local game_state = require "nvimesweeper.game_state"
 
 local util = require "nvimesweeper.util"
 local error = util.error
 
-local ns = api.nvim_create_namespace "nvimesweeper"
 local M = {}
 
+local ns = api.nvim_create_namespace "nvimesweeper"
 local Ui = {}
 
 function Ui:enable_modification(enable)
@@ -63,10 +64,11 @@ function Ui:redraw_status()
 end
 
 function Ui:board_square_char(i)
+  local board_chars = config_mod.config.board_chars
   local game_over = game_state.is_game_over(self.game.state)
   local state = self.game.board.state[i]
   local mine = self.game.board.mines[i]
-  local char = " "
+  local char = board_chars.unrevealed
 
   if
     mine
@@ -75,16 +77,15 @@ function Ui:board_square_char(i)
       or (game_over and state ~= board_mod.SQUARE_FLAGGED)
     )
   then
-    char = "*"
+    char = board_chars.mine
   elseif state == board_mod.SQUARE_FLAGGED then
-    char = (not game_over or (game_over and mine)) and "!" or "X"
+    local flag_wrong = game_over and not mine
+    char = flag_wrong and board_chars.flag_wrong or board_chars.flag
   elseif state == board_mod.SQUARE_MAYBE then
-    char = "?"
+    char = board_chars.maybe
   elseif state == board_mod.SQUARE_REVEALED then
     local danger = self.game.board.danger[i]
-    if danger > 0 then
-      char = tostring(danger)
-    end
+    char = danger > 0 and tostring(danger) or board_chars.revealed
   end
 
   return char

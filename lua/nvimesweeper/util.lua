@@ -4,6 +4,7 @@ local M = {}
 
 function M.reload()
   package.loaded.nvimesweeper = nil
+  package.loaded["nvimesweeper.config"] = nil
   package.loaded["nvimesweeper.board"] = nil
   package.loaded["nvimesweeper.game"] = nil
   package.loaded["nvimesweeper.game_state"] = nil

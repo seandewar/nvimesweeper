@@ -1,38 +1,9 @@
 local fn = vim.fn
 
+local config_mod = require "nvimesweeper.config"
 local game = require "nvimesweeper.game"
 local util = require "nvimesweeper.util"
 local error = util.error
-
-local M = {
-  default_opts = {
-    tab = false,
-  },
-
-  prompt_presets = { "easy", "medium", "hard", "nightmare" },
-  presets = {
-    easy = {
-      width = 9,
-      height = 9,
-      mines = 10,
-    },
-    medium = {
-      width = 16,
-      height = 16,
-      mines = 40,
-    },
-    hard = {
-      width = 30,
-      height = 16,
-      mines = 99,
-    },
-    nightmare = {
-      width = 60,
-      height = 16,
-      mines = 384,
-    },
-  },
-}
 
 local opt_types = {
   width = "number",
@@ -41,8 +12,20 @@ local opt_types = {
   tab = "boolean",
 }
 
+local M = {}
+
+function M.setup(new_config)
+  return config_mod.apply_config(new_config or {})
+end
+
 function M.play(opts)
-  opts = vim.tbl_extend("force", M.default_opts, opts)
+  -- ensure that we're setup
+  if not config_mod.config then
+    M.setup {}
+  end
+
+  local config = config_mod.config
+  opts = vim.tbl_extend("force", config.opts, opts or {})
 
   -- modifying opts while iterating it with pairs() is "A Bad Idea(TM)", so
   -- modify new_opts instead and replace opts with it later
@@ -51,7 +34,7 @@ function M.play(opts)
     local correct_type = opt_types[opt]
     local preset
     if not correct_type then
-      preset = M.presets[opt]
+      preset = config.presets[opt]
       if preset then
         correct_type = "boolean" -- presets act like bool options
       else
@@ -77,8 +60,8 @@ function M.play(opts)
   if not opts.width and not opts.height and not opts.mines then
     local lines = { "Choose a game preset: " }
     local choices = {}
-    for _, preset_name in ipairs(M.prompt_presets) do
-      local preset = M.presets[preset_name]
+    for _, preset_name in ipairs(config.prompt_presets) do
+      local preset = config.presets[preset_name]
       lines[#lines + 1] = string.format(
         "- %s (%dx%d, %d mines)",
         preset_name,
@@ -94,12 +77,13 @@ function M.play(opts)
     local choice = fn.confirm(
       table.concat(lines, "\n"),
       table.concat(choices, "\n"),
-      #M.prompt_presets + 1
+      #config.prompt_presets + 1
     )
     if choice == 0 then
       return -- cancelled
-    elseif choice <= #M.prompt_presets then
-      opts = vim.tbl_extend("force", opts, M.presets[M.prompt_presets[choice]])
+    elseif choice <= #config.prompt_presets then
+      local preset = config.presets[config.prompt_presets[choice]]
+      opts = vim.tbl_extend("force", opts, preset)
     end
   end
 
@@ -142,7 +126,7 @@ function M.play(opts)
 end
 
 function M.play_cmd(args)
-  args = vim.split(args, " ")
+  args = vim.split(args or "", " ")
   local opts = {}
   for _, arg in ipairs(args) do
     if arg ~= "" then

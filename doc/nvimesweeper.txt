@@ -3,7 +3,16 @@
 Author:  Sean Dewar <https://github.com/seandewar>
 License: MIT
 
-This plugin requires Neovim version 0.5 or above.
+This plugin requires Neovim version 0.5 or newer.
+
+==============================================================================
+CONFIGURATION					*nvimesweeper-configure*
+
+Nvimesweeper provides some ways for configuring defaults via the `setup()`
+function. See |nvimesweeper.setup()| for details.
+
+Additionally, the highlights used for colouring the board may be overridden,
+see |nvimesweeper-highlight-groups|.
 
 ==============================================================================
 COMMANDS					*nvimesweeper-commands*
@@ -57,8 +66,8 @@ COMMANDS					*nvimesweeper-commands*
 >
 			:Nvimesweeper hard mines=120
 <
-			Starts a game in a new floating window using the hard
-			preset, but with 120 mines.
+			Starts a game in a new floating window using the
+			"hard" preset, but with 120 mines.
 
 ==============================================================================
 MAPS						*nvimesweeper-maps*
@@ -125,9 +134,96 @@ Nvimesweeper does not yet take responsibility for seeding the random number
 generator used to place the mines, meaning you may see the same mine layout
 after restarting Nvim.
 
-To solve this, you may want to seed the RNG before running `:Nvimesweeper`,
-like: >
+To solve this, you may want to seed the RNG before running `:Nvimesweeper`.
+For example, using the command: >
     :lua math.randomseed(os.time())
+<
+==============================================================================
+LUA FUNCTIONS					*nvimesweeper-lua-functions*
+
+Some Lua functions are available to be called from the `nvimesweeper` module.
+They can be accessed like: >
+
+	local nvimesweeper = require "nvimesweeper"
+	nvimesweeper.play { medium = true }
+<
+						*nvimesweeper.setup()*
+setup([{config}])	Provide the configuration to be used. Calling this is
+			not required if you are happy with the defaults.
+
+			{config} is an optional table with these keys:
+
+			"opts":	    table of default values to use for
+			arguments omitted from |:Nvimesweeper|. For example,
+			to start games in a new tab page window by default: >
+
+			    opts = { tab = true }
+<
+			"presets":  table of game presets. For example, to add
+			a "very easy" preset using a 5x5 board with 5 mines: >
+
+			    presets = {
+				["very easy"] = {
+				    width = 5,
+				    height = 5,
+				    mines = 5,
+				},
+			    }
+<
+			"prompt_presets":   table of preset names to display
+			in the prompt if a preset was not specified when
+			starting a game. For example, to only show the "hard",
+			"insane" and "nightmare" presets: >
+
+			    prompt_presets = { "hard", "insane", "nightmare" }
+<
+			Presets are shown in the prompt in the same order they
+			are given. Any presets not specified can still be used
+			if passed as an argument to |:Nvimesweeper|.
+
+			"board_chars":	table of characters to use as board
+			square symbols. Has the following keys:
+
+			    "unrevealed": used for an unrevealed square.
+
+			    "revealed": used for a revealed safe square with
+			    no flags, markers or adjacent mines.
+
+			    "mine": used for a revealed mine.
+
+			    "flag": used for a flagged square.
+
+			    "maybe": used for marked squares.
+
+			    "flag_wrong": used for a flagged square that was
+			    revealed to not have contained a mine at the end
+			    of the game.
+
+			Example: >
+
+			    board_chars = { revealed = ".", mine = "@" }
+<
+			Note: omitted configuration values will use the
+			defaults. To reset all values, omit or pass an empty
+			table for {config}: >
+
+			nvimesweeper.setup {}
+<
+						*nvimesweeper.play_cmd()*
+play_cmd([{args}])	Works like |:Nvimesweeper|, where {args} are the
+			optional command arguments as a string. Example: >
+
+			nvimesweeper.play_cmd("hard mines=200 tab")
+<
+						*nvimesweeper.play()*
+play([{opts}])		Like |nvimesweeper.play_cmd()|, but the optional
+			arguments are passed as a table. Example: >
+
+			nvimesweeper.play {
+			    hard = true,
+			    mines = 200,
+			    tab = true,
+			}
 <
 ==============================================================================
 HIGHLIGHT GROUPS			*nvimesweeper-highlight-groups*
@@ -157,7 +253,8 @@ NvimesweeperFlagWrong	Used for automatically revealed flagged squares that
 			did not contain a mine at the end of a game.
 
 						*hl-NvimesweeperRevealed*
-NvimesweeperRevealed	Used for revealed safe squares with no adjacent mines.
+NvimesweeperRevealed	Used for revealed safe squares with no flags, marks or
+			adjacent mines.
 
 			*hl-NvimesweeperDanger1* *hl-NvimesweeperDanger2*
 			*hl-NvimesweeperDanger3* *hl-NvimesweeperDanger4*
