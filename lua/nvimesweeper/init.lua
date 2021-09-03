@@ -6,10 +6,31 @@ local error = util.error
 
 local M = {
   default_opts = {
-    width = 40,
-    height = 12,
-    mines = 60,
     tab = false,
+  },
+
+  prompt_presets = { "easy", "medium", "hard", "nightmare" },
+  presets = {
+    easy = {
+      width = 9,
+      height = 9,
+      mines = 10,
+    },
+    medium = {
+      width = 16,
+      height = 16,
+      mines = 40,
+    },
+    hard = {
+      width = 30,
+      height = 16,
+      mines = 99,
+    },
+    nightmare = {
+      width = 60,
+      height = 16,
+      mines = 384,
+    },
   },
 }
 
@@ -20,59 +41,95 @@ local opt_types = {
   tab = "boolean",
 }
 
-local function convert(opt, value, to_type)
-  local from_type = type(value)
-  if from_type == to_type then
-    return value
-  end
-
-  if to_type == "number" then
-    return tonumber(value)
-  elseif to_type == "boolean" then
-    if from_type == "string" then
-      if value == "true" then
-        return true
-      elseif value == "false" then
-        return false
-      end
-    end
-
-    value = tonumber(value)
-    return value == nil and nil or value ~= 0
-  end
-
-  return nil
-end
-
 function M.play(opts)
   opts = vim.tbl_extend("force", M.default_opts, opts)
 
+  -- modifying opts while iterating it with pairs() is "A Bad Idea(TM)", so
+  -- modify new_opts instead and replace opts with it later
+  local new_opts = {}
   for opt, value in pairs(opts) do
     local correct_type = opt_types[opt]
+    local preset
     if not correct_type then
-      error('unknown option "' .. opt .. '"')
+      preset = M.presets[opt]
+      if preset then
+        correct_type = "boolean" -- presets act like bool options
+      else
+        error('unknown option "' .. opt .. '"')
+      end
     end
 
-    value = convert(opt, value, correct_type)
+    value = util.convert_to(value, correct_type)
     if value == nil then
       error(opt .. " should be a " .. correct_type .. "!")
     end
-    opts[opt] = value
+
+    if preset and value then
+      new_opts = vim.tbl_extend("force", new_opts, preset)
+    else
+      new_opts[opt] = value
+    end
+  end
+  opts = new_opts
+
+  -- if nothing was specified for the board size and mine count, prompt for a
+  -- preset to use instead
+  if not opts.width and not opts.height and not opts.mines then
+    local lines = { "Choose a game preset: " }
+    local choices = {}
+    for _, preset_name in ipairs(M.prompt_presets) do
+      local preset = M.presets[preset_name]
+      lines[#lines + 1] = string.format(
+        "- %s (%dx%d, %d mines)",
+        preset_name,
+        preset.width,
+        preset.height,
+        preset.mines
+      )
+      choices[#choices + 1] = "&" .. preset_name
+    end
+    lines[#lines + 1] = ""
+    choices[#choices + 1] = "&custom"
+
+    local choice = fn.confirm(
+      table.concat(lines, "\n"),
+      table.concat(choices, "\n"),
+      #M.prompt_presets + 1
+    )
+    if choice == 0 then
+      return -- cancelled
+    elseif choice <= #M.prompt_presets then
+      opts = vim.tbl_extend("force", opts, M.presets[M.prompt_presets[choice]])
+    end
+  end
+
+  -- ensure we have a value for the board size and mine count
+  local function input_nr(str, opt, default)
+    opts[opt] = opts[opt]
+      or util.convert_to(fn.input(str, default), opt_types[opt])
+    return opts[opt] ~= ""
+  end
+  if
+    not input_nr("Board width? ", "width", "40")
+    or not input_nr("Board height? ", "height", "12")
+    or not input_nr("How many mines? ", "mines", "60")
+  then
+    return -- cancelled
   end
 
   if
-    opts.width <= 0
-    or opts.height <= 0
-    or opts.mines <= 0
-    or not util.is_integer(opts.width)
+    not util.is_integer(opts.width)
     or not util.is_integer(opts.height)
     or not util.is_integer(opts.mines)
+    or opts.width <= 0
+    or opts.height <= 0
+    or opts.mines <= 0
   then
     error "board size and mine count must be positive integers!"
   end
 
   local size = opts.width * opts.height
-  if opts.mines == 1 or opts.mine_count == size - 1 then
+  if opts.mines == 1 or opts.mines == size - 1 then
     error(
       "way too easy; your first chosen square is always safe, so this would be "
         .. "a guaranteed win..."
@@ -99,13 +156,6 @@ function M.play_cmd(args)
     end
   end
 
-  local function input_nr(str, opt)
-    opts[opt] = opts[opt] or fn.input(str, M.default_opts[opt])
-  end
-
-  input_nr("Board width? ", "width")
-  input_nr("Board height? ", "height")
-  input_nr("How many mines? ", "mines")
   M.play(opts)
 end
 

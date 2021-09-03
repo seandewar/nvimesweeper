@@ -32,14 +32,15 @@ COMMANDS					*nvimesweeper-commands*
 					finding its buffer with |:b|, for
 					example.
 
-			If the "width", "height" or "mines" arguments are
-			omitted, you will be prompted for their values on the
-			command-line instead. Other arguments will be set to
-			their default values.
-
 			Arguments are specified in the format `arg=value`.
 			Boolean arguments, such as "tab", may simply be
-			specified as `arg` to be set to true.
+			specified as `arg` to be set to true. Game presets may
+			be specified as booleans.
+
+			If any of the "width", "height" or "mines" arguments
+			are omitted, you will be prompted for their values. If
+			all are omitted, you will be prompted for a preset.
+			Other arguments are set to their defaults.
 
 			Examples:
 >
@@ -53,6 +54,11 @@ COMMANDS					*nvimesweeper-commands*
 			Starts a game in a new floating window with 200 mines,
 			but you will be prompted for the width and height of
 			the board.
+>
+			:Nvimesweeper hard mines=120
+<
+			Starts a game in a new floating window using the hard
+			preset, but with 120 mines.
 
 ==============================================================================
 MAPS						*nvimesweeper-maps*
@@ -72,7 +78,7 @@ In a game of Nvimesweeper, these buffer-local mappings are defined:
 
 						*nvimesweeper_!*
 !			Flag the unrevealed square under the cursor as
-			dangerous. If it is already flagged, this flag is
+			dangerous. If it is already flagged, the flag is
 			removed.
 
 			Useful if you suspect a mine is hiding underneath, as
@@ -126,8 +132,8 @@ like: >
 ==============================================================================
 HIGHLIGHT GROUPS			*nvimesweeper-highlight-groups*
 
-Nvimesweeper defines default highlight groups when the plugin is first loaded
-and on every |ColorScheme| event. They are:
+Nvimesweeper defines default highlight groups |:hi-default| when the plugin is
+first loaded and on every |ColorScheme| event. They are:
 
 						*hl-NvimesweeperUnrevealed*
 NvimesweeperUnrevealed	Used for unrevealed squares without a flag or a mark.
