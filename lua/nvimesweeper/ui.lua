@@ -41,10 +41,10 @@ function Ui:redraw_status()
   local state = self.game.state
   local status
   if state == game_state.GAME_NOT_STARTED then
-    status = "Game will begin once you reveal a square..."
+    status = "Reveal a square or press F1 for help."
   elseif state == game_state.GAME_STARTED then
     status = string.format(
-      "%s\tFlagged: %d/%d",
+      "%s    Flagged: %d/%d",
       time_string(),
       self.game.board.flag_count,
       self.game.board.mine_count
@@ -302,7 +302,7 @@ function M.new_ui(game, open_tab)
 
   if
     not create_window(ui, not open_tab and {
-      width = math.max(45, game.board.width),
+      width = math.max(42, game.board.width),
       height = game.board.height + 2,
     } or nil)
   then
@@ -347,6 +347,8 @@ function M.new_ui(game, open_tab)
       .. board_mod.SQUARE_MAYBE
       .. ")<CR>"
   )
+
+  util.nnoremap(buf, "<F1>", "<Cmd>help nvimesweeper-maps<CR>")
 
   local cleanup_cmd = "lua require('nvimesweeper.game').games["
     .. buf

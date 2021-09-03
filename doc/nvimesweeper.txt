@@ -1,0 +1,159 @@
+*nvimesweeper.txt*	Play Minesweeper in your favourite text editor!
+
+Author:  Sean Dewar <https://github.com/seandewar>
+License: MIT
+
+This plugin requires Neovim version 0.5 or above.
+
+==============================================================================
+COMMANDS					*nvimesweeper-commands*
+
+						*:Nvimesweeper*
+:Nvimesweeper [args]	Starts a new game of Nvimesweeper.
+
+			The following optional arguments are supported:
+
+			"width"		Width of the board in squares.
+					Takes a positive integer.
+
+			"height"	Height of the board in squares.
+					Takes a positive integer.
+
+			"mines"		Number of mines to place on the board.
+					Takes a positive integer.
+
+			"tab"		Display the game in a new tab page
+					window, rather than a floating window.
+					Takes a boolean. Defaults to false.
+
+			If the "width", "height" or "mines" arguments are
+			omitted, you will be prompted for their values on the
+			command-line instead. Other arguments will be set to
+			their default values.
+
+			Arguments are specified in the format `arg=value`.
+			Boolean arguments, such as "tab", may simply be
+			specified as `arg` to be set to true.
+
+			Examples:
+>
+			:Nvimesweeper tab width=100 height=20 mines=200
+<
+			Starts a game in a new tab page window with a 100x20
+			board and 200 mines.
+>
+			:Nvimesweeper tab=false mines=100
+<
+			Starts a game in a new floating window with 200 mines,
+			but you will be prompted for the width and height of
+			the board.
+
+==============================================================================
+MAPS						*nvimesweeper-maps*
+
+In a game of Nvimesweeper, these buffer-local mappings are defined:
+
+						*nvimesweeper_<F1>*
+<F1>			Opens this help file.
+
+					*nvimesweeper_<CR>* *nvimesweeper_x*
+<CR> or x		Reveal the square under the cursor, unless it has been
+			flagged. If the square contains a mine, you lose.
+
+						*nvimesweeper_<Space>*
+<Space>			Cycle between flagging, marking and un-marking the
+			unrevealed square under the cursor.
+
+						*nvimesweeper_!*
+!			Flag the unrevealed square under the cursor as
+			dangerous. If it is already flagged, this flag is
+			removed.
+
+			Useful if you suspect a mine is hiding underneath, as
+			flagged squares cannot be revealed until the flag is
+			removed.
+
+						*nvimesweeper_?*
+?			Mark the square under the cursor.
+
+			Unlike flagged squares, marked squares can be
+			revealed. Useful for marking a square to be revisited
+			later if you are unsure.
+
+==============================================================================
+READING THE BOARD				*nvimesweeper-board*
+
+Nvimesweeper represents the board state by displaying various symbols:
+
+						*nvimesweeper-danger*
+1 2 3 4 5 6 7 8 	These numbers represent the "danger level" of a
+			revealed square. It corresponds to the number of mines
+			directly adjacent to the square, in 8 directions.
+
+						*nvimesweeper-mine*
+*			This is a revealed mine. If you reveal this, you lose.
+			All mines are revealed at the end of a game, except
+			for correctly flagged mines.
+
+						*nvimesweeper-flag*
+!			This is an unrevealed square that you have flagged as
+			dangerous.
+
+						*nvimesweeper-mark*
+?			This is an unrevealed square that has been marked.
+
+						*nvimesweeper-wrong*
+X			At the end of a game, all flagged squares that did not
+			contain a mine are revealed with this symbol.
+
+==============================================================================
+HIGHLIGHT GROUPS			*nvimesweeper-highlight-groups*
+
+Nvimesweeper defines default highlight groups when the plugin is first loaded
+and on every |ColorScheme| event. They are:
+
+						*hl-NvimesweeperUnrevealed*
+NvimesweeperUnrevealed	Used for unrevealed squares without a flag or a mark.
+
+						*hl-NvimesweeperFlag*
+NvimesweeperFlag	Used for unrevealed squares with a flag.
+
+						*hl-NvimesweeperMaybe*
+NvimesweeperMaybe	Used for unrevealed squares with a mark.
+
+						*hl-NvimesweeperTriggeredMine*
+NvimesweeperTriggeredMine	Used for the mine that caused the game to end
+				in a loss after it was revealed.
+
+						*hl-NvimesweeperMine*
+NvimesweeperMine	Used for automatically revealed mines at the end of a
+			game.
+
+						*hl-NvimesweeperFlagWrong*
+NvimesweeperFlagWrong	Used for automatically revealed flagged squares that
+			did not contain a mine at the end of a game.
+
+						*hl-NvimesweeperRevealed*
+NvimesweeperRevealed	Used for revealed safe squares with no adjacent mines.
+
+			*hl-NvimesweeperDanger1* *hl-NvimesweeperDanger2*
+			*hl-NvimesweeperDanger3* *hl-NvimesweeperDanger4*
+			*hl-NvimesweeperDanger5* *hl-NvimesweeperDanger6*
+			*hl-NvimesweeperDanger7* *hl-NvimesweeperDanger8*
+NvimesweeperDanger1	Used for revealed safe squares with adjacent mines.
+NvimesweeperDanger2
+NvimesweeperDanger3	The number at the end of the name denotes how many
+NvimesweeperDanger4	mines are adjacent.
+NvimesweeperDanger5
+NvimesweeperDanger6
+NvimesweeperDanger7
+NvimesweeperDanger8
+
+==============================================================================
+ABOUT						*nvimesweeper-about*
+
+Grab the latest version or report a bug on GitHub:
+
+https://github.com/seandewar/nvimesweeper
+
+ vim:tw=78:ts=8:noet:ft=help:norl:
