@@ -107,6 +107,17 @@ X			At the end of a game, all flagged squares that did not
 			contain a mine are revealed with this symbol.
 
 ==============================================================================
+SEEDING THE RANDOM NUMBER GENERATOR		*nvimesweeper-rng*
+
+Nvimesweeper does not yet take responsibility for seeding the random number
+generator used to place the mines, meaning you may see the same mine layout
+after restarting Nvim.
+
+To solve this, you may want to seed the RNG before running `:Nvimesweeper`,
+like: >
+    :lua math.randomseed(os.time())
+<
+==============================================================================
 HIGHLIGHT GROUPS			*nvimesweeper-highlight-groups*
 
 Nvimesweeper defines default highlight groups when the plugin is first loaded

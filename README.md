@@ -17,9 +17,11 @@ Install it using your favourite package manager like any other plugin, then run
 - Press `<Space>` to cycle between `!`, `?` and unmarking a square.
 - Press `<CR>` or `x` to reveal a square; just try not to step on a mine!
 
+Run `:help nvimesweeper` for more details.
+
 ### Seeding the random number generator
 
-Nvimesweeper does not take responsibility for seeding the random number
+Nvimesweeper does not yet take responsibility for seeding the random number
 generator used to place the mines, meaning you may see the same mine layout
 after restarting Nvim.
 
