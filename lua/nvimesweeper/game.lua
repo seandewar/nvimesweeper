@@ -46,7 +46,8 @@ end
 
 -- cycles NONE -> FLAGGED -> MAYBE if state == nil; otherwise toggle state
 function M.place_marker(new_state, buf, x, y)
-  local game, x, y, i = get_action_args(buf, x, y)
+  local game, nx, ny, i = get_action_args(buf, x, y)
+  x, y = nx, ny
   if game_state.is_game_over(game.state) or not i then
     return false
   end
@@ -74,7 +75,8 @@ function M.place_marker(new_state, buf, x, y)
 end
 
 function M.reveal(buf, x, y)
-  local game, x, y, i = get_action_args(buf, x, y)
+  local game, nx, ny, i = get_action_args(buf, x, y)
+  x, y = nx, ny
   if game_state.is_game_over(game.state) or not i then
     return false
   end
