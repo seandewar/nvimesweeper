@@ -81,9 +81,17 @@ In a game of Nvimesweeper, these buffer-local mappings are defined:
 <CR> or x		Reveal the square under the cursor, unless it has been
 			flagged. If the square contains a mine, you lose.
 
+						*nvimesweeper_<LeftMouse>*
+<LeftMouse>		Same as above. Requires mouse support to be enabled.
+			See |'mouse'|.
+
 						*nvimesweeper_<Space>*
 <Space>			Cycle between flagging, marking and un-marking the
 			unrevealed square under the cursor.
+
+						*nvimesweeper_<RightMouse>*
+<RightMouse>		Same as above. Requires mouse support to be enabled.
+			See |'mouse'|.
 
 						*nvimesweeper_!*
 !			Flag the unrevealed square under the cursor as

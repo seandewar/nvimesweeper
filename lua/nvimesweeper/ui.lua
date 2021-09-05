@@ -1,4 +1,4 @@
-local api, uv = vim.api, vim.loop
+local api, fn, uv = vim.api, vim.fn, vim.loop
 
 local config_mod = require "nvimesweeper.config"
 local board_mod = require "nvimesweeper.board"
@@ -7,7 +7,9 @@ local game_state = require "nvimesweeper.game_state"
 local util = require "nvimesweeper.util"
 local error = util.error
 
-local M = {}
+local M = {
+  uis = {},
+}
 
 local ns = api.nvim_create_namespace "nvimesweeper"
 local Ui = {}
@@ -227,6 +229,11 @@ function Ui:stop_status_redraw()
   self.redraw_status_timer:stop()
 end
 
+function Ui:cleanup()
+  self:stop_status_redraw()
+  M.uis[self.buf] = nil
+end
+
 function Ui:board_square_pos(i)
   local pos = api.nvim_buf_get_extmark_by_id(
     self.buf,
@@ -237,11 +244,15 @@ function Ui:board_square_pos(i)
   return pos
 end
 
-function Ui:cursor_board_pos()
-  local cursor_pos = api.nvim_win_get_cursor(0)
-  cursor_pos[1] = cursor_pos[1] - 1 -- nvim_win_get_cursor gives 1-indexed rows
+-- uses current window cursor position if wx is nil
+function Ui:win_to_board_pos(wx, wy)
   local board_pos = self:board_square_pos(1)
-  return cursor_pos[2] - board_pos[2], cursor_pos[1] - board_pos[1]
+  if not wx then
+    local cursor_pos = api.nvim_win_get_cursor(0)
+    -- nvim_win_get_cursor gives 1-indexed rows
+    wx, wy = cursor_pos[2], cursor_pos[1] - 1
+  end
+  return wx - board_pos[2], wy - board_pos[1]
 end
 
 local function define_buf_autocmd(buf, event, rhs)
@@ -314,6 +325,14 @@ local function create_window(ui, float_opts)
   return true
 end
 
+function M.move_cursor_to_click()
+  fn.getchar()
+  if vim.v.mouse_winid ~= api.nvim_get_current_win() then
+    return false
+  end
+  api.nvim_win_set_cursor(0, { vim.v.mouse_lnum, vim.v.mouse_col - 1 })
+end
+
 function M.new_ui(game, open_tab)
   local buf = api.nvim_create_buf(true, true)
   if buf == 0 then
@@ -347,9 +366,23 @@ function M.new_ui(game, open_tab)
     )
   )
 
+  util.nnoremap(buf, "<F1>", "<Cmd>help nvimesweeper-maps<CR>")
   util.nnoremap(
     buf,
-    "<CR>",
+    "<LeftMouse>",
+    "<Cmd>lua require('nvimesweeper.ui').move_cursor_to_click() "
+      .. "require('nvimesweeper.game').reveal()<CR>"
+  )
+  util.nnoremap(
+    buf,
+    "<RightMouse>",
+    "<Cmd>lua require('nvimesweeper.ui').move_cursor_to_click() "
+      .. "require('nvimesweeper.game').place_marker()<CR>"
+  )
+
+  util.nnoremap(
+    buf,
+    { "<CR>", "x" },
     "<Cmd>lua require('nvimesweeper.game').reveal()<CR>"
   )
   util.nnoremap(
@@ -357,8 +390,6 @@ function M.new_ui(game, open_tab)
     "<Space>",
     "<Cmd>lua require('nvimesweeper.game').place_marker()<CR>"
   )
-
-  util.nnoremap(buf, "x", "<Cmd>lua require('nvimesweeper.game').reveal()<CR>")
   util.nnoremap(
     buf,
     "!",
@@ -374,9 +405,7 @@ function M.new_ui(game, open_tab)
       .. ")<CR>"
   )
 
-  util.nnoremap(buf, "<F1>", "<Cmd>help nvimesweeper-maps<CR>")
-
-  local cleanup_cmd = "lua require('nvimesweeper.game').games["
+  local cleanup_cmd = "lua require('nvimesweeper.ui').uis["
     .. buf
     .. "]:cleanup()"
   define_buf_autocmd(buf, "BufDelete", cleanup_cmd)
@@ -387,6 +416,7 @@ function M.new_ui(game, open_tab)
   board_pos[1] = board_pos[1] + 1 -- nvim_win_set_cursor takes a 1-indexed row
   api.nvim_win_set_cursor(0, board_pos)
 
+  M.uis[buf] = ui
   return ui
 end
 

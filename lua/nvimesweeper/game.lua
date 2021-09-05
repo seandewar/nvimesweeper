@@ -4,16 +4,9 @@ local game_state = require "nvimesweeper.game_state"
 local board_mod = require "nvimesweeper.board"
 local ui_mod = require "nvimesweeper.ui"
 
-local M = {
-  games = {},
-}
+local M = {}
 
 local Game = {}
-
-function Game:cleanup()
-  self.ui:stop_status_redraw()
-  M.games[self.ui.buf] = nil
-end
 
 function M.new_game(width, height, mine_count, open_tab)
   local game = vim.deepcopy(Game)
@@ -26,27 +19,25 @@ function M.new_game(width, height, mine_count, open_tab)
     return nil
   end
   game.ui = ui
-
-  M.games[ui.buf] = game
   return game
 end
 
-local function get_action_args(buf, x, y)
+local function action_args(buf, x, y)
   buf = buf or api.nvim_get_current_buf()
-  local game = M.games[buf]
+  local game = ui_mod.uis[buf].game
   if not game then
     return nil
   end
 
   if not x then
-    x, y = game.ui:cursor_board_pos()
+    x, y = game.ui:win_to_board_pos()
   end
   return game, x, y, game.board:index(x, y)
 end
 
 -- cycles NONE -> FLAGGED -> MAYBE if state == nil; otherwise toggle state
 function M.place_marker(new_state, buf, x, y)
-  local game, nx, ny, i = get_action_args(buf, x, y)
+  local game, nx, ny, i = action_args(buf, x, y)
   x, y = nx, ny
   if game_state.is_game_over(game.state) or not i then
     return false
@@ -75,7 +66,7 @@ function M.place_marker(new_state, buf, x, y)
 end
 
 function M.reveal(buf, x, y)
-  local game, nx, ny, i = get_action_args(buf, x, y)
+  local game, nx, ny, i = action_args(buf, x, y)
   x, y = nx, ny
   if game_state.is_game_over(game.state) or not i then
     return false

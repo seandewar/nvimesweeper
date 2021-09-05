@@ -4,8 +4,8 @@ local M = {}
 
 function M.reload()
   package.loaded.nvimesweeper = nil
-  package.loaded["nvimesweeper.config"] = nil
   package.loaded["nvimesweeper.board"] = nil
+  package.loaded["nvimesweeper.config"] = nil
   package.loaded["nvimesweeper.game"] = nil
   package.loaded["nvimesweeper.game_state"] = nil
   package.loaded["nvimesweeper.ui"] = nil
@@ -22,7 +22,18 @@ function M.is_integer(number)
 end
 
 function M.nnoremap(buf, lhs, rhs)
-  api.nvim_buf_set_keymap(buf, "n", lhs, rhs, { noremap = true, silent = true })
+  if type(lhs) == "string" then
+    lhs = { lhs }
+  end
+  for _, value in ipairs(lhs) do
+    api.nvim_buf_set_keymap(
+      buf,
+      "n",
+      value,
+      rhs,
+      { noremap = true, silent = true }
+    )
+  end
 end
 
 function M.tbl_rep(value, count)
