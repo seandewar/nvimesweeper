@@ -55,13 +55,13 @@ function Ui:redraw_status()
   elseif game_state.is_game_over(state) then
     if state == game_state.GAME_WON then
       status = "Congratulations, you win!"
-      hl_col2, hl_group = #status, "NvimesweeperWin"
+      hl_group = "NvimesweeperWin"
     elseif state == game_state.GAME_LOST then
       status = "KA-BOOM! You explode..."
-      hl_col2, hl_group = #status, "NvimesweeperLose"
+      hl_group = "NvimesweeperLose"
     end
+    hl_col1, hl_col2 = 0, #status
     status = status .. " " .. time_string(true)
-    hl_col1 = 0
   end
 
   local left_pad = centering_left_pad(self, #status)
