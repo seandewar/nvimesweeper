@@ -228,8 +228,20 @@ play([{opts}])		Like |nvimesweeper.play_cmd()|, but the optional
 ==============================================================================
 HIGHLIGHT GROUPS			*nvimesweeper-highlight-groups*
 
-Nvimesweeper defines default highlight groups |:hi-default| when the plugin is
-first loaded and on every |ColorScheme| event. They are:
+Nvimesweeper defines default highlight groups (see |:hi-default|) when the
+plugin is first loaded and on every |ColorScheme| event. They are:
+
+						*hl-NvimesweeperWin*
+NvimesweeperWin		Used in the status message to indicate a won game.
+
+						*hl-NvimesweeperLose*
+NvimesweeperLose	Used in the status message to indicate a lost game.
+
+						*hl-NvimesweeperTooManyFlags*
+NvimesweeperTooManyFlags	Used in the status message to indicate that
+				the number of placed flags is equal to or
+				greater than the number of mines. This means
+				some flags must have been placed incorrectly.
 
 						*hl-NvimesweeperUnrevealed*
 NvimesweeperUnrevealed	Used for unrevealed squares without a flag or a mark.

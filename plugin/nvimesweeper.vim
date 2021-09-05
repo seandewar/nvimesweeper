@@ -14,6 +14,10 @@ command! -nargs=* -bar Nvimesweeper
             \ lua require("nvimesweeper").play_cmd(<q-args>)
 
 function! s:DefineHighlights() abort
+    highlight default link NvimesweeperWin DiffAdd
+    highlight default link NvimesweeperLose ErrorMsg
+    highlight default link NvimesweeperTooManyFlags WarningMsg
+
     highlight default NvimesweeperUnrevealed ctermbg=Grey
                 \ guibg=#c0c0c0
     highlight default NvimesweeperMaybe ctermfg=Black ctermbg=Grey

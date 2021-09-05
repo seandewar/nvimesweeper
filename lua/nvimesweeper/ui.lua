@@ -20,7 +20,6 @@ local function centering_left_pad(ui, len)
   if not ui.centered then
     return 0
   end
-
   local pad = (api.nvim_win_get_width(0) - len) / 2
   return math.floor(math.max(0, pad))
 end
@@ -40,27 +39,53 @@ function Ui:redraw_status()
   end
 
   local state = self.game.state
+  local hl_col1, hl_col2, hl_group
   local status
   if state == game_state.GAME_NOT_STARTED then
     status = "Reveal a square or press F1 for help."
   elseif state == game_state.GAME_STARTED then
-    status = string.format(
-      "%s    Flagged: %d/%d",
-      time_string(),
-      self.game.board.flag_count,
-      self.game.board.mine_count
-    )
-  elseif state == game_state.GAME_WON then
-    status = "Congratulations, you win! " .. time_string(true)
-  elseif state == game_state.GAME_LOST then
-    status = "KA-BOOM! You explode... " .. time_string(true)
+    local board = self.game.board
+    status = "Flagged: " .. board.flag_count .. "/" .. board.mine_count
+    local hl_len = #status
+    status = time_string() .. "    " .. status
+    if board.flag_count >= board.mine_count then
+      hl_col1 = #status - hl_len
+      hl_col2, hl_group = hl_col1 + hl_len, "NvimesweeperTooManyFlags"
+    end
+  elseif game_state.is_game_over(state) then
+    if state == game_state.GAME_WON then
+      status = "Congratulations, you win!"
+      hl_col2, hl_group = #status, "NvimesweeperWin"
+    elseif state == game_state.GAME_LOST then
+      status = "KA-BOOM! You explode..."
+      hl_col2, hl_group = #status, "NvimesweeperLose"
+    end
+    status = status .. " " .. time_string(true)
+    hl_col1 = 0
   end
 
-  status = string.rep(" ", centering_left_pad(self, #status)) .. status
-
+  local left_pad = centering_left_pad(self, #status)
+  status = string.rep(" ", left_pad) .. status
   self:enable_modification(true)
   api.nvim_buf_set_lines(self.buf, 0, 2, false, { status, "" })
   self:enable_modification(false)
+
+  if hl_col1 then
+    self.status_hl_extmark = api.nvim_buf_set_extmark(
+      self.buf,
+      ns,
+      0,
+      hl_col1 + left_pad,
+      {
+        id = self.status_hl_extmark,
+        end_col = hl_col2 + left_pad,
+        hl_group = hl_group,
+      }
+    )
+  elseif self.status_hl_extmark then
+    api.nvim_buf_del_extmark(self.buf, ns, self.status_hl_extmark)
+    self.status_hl_extmark = nil
+  end
 end
 
 function Ui:board_square_char(i)
