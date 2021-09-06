@@ -76,7 +76,7 @@ function M.reveal(buf, x, y)
   if
     game.state == game_state.GAME_NOT_STARTED and board_mod.is_revealable(state)
   then
-    game.board:place_mines(i)
+    game.board:place_mines(x, y)
     game.state = game_state.GAME_STARTED
     game.start_time = uv.hrtime()
     game.ui:start_status_redraw()

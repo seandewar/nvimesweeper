@@ -20,17 +20,28 @@ function Board:index(x, y)
 end
 
 -- Uses self.mine_count if mine_count argument is nil
-function Board:place_mines(safe_i, mine_count)
-  self.mine_count = mine_count or self.mine_count
-  for _ = 1, self.mine_count do
+function Board:place_mines(safe_x, safe_y, mine_count)
+  mine_count = mine_count or self.mine_count
+  self.mines = {}
+  self.mine_count = 0
+
+  local function is_adjacent(x, y, x2, y2)
+    return math.abs(x - x2) <= 1 and math.abs(y - y2) <= 1
+  end
+
+  for _ = 1, mine_count do
     local x, y, i
     repeat
       x = math.random(0, self.width - 1)
       y = math.random(0, self.height - 1)
       i = self:index(x, y)
-    until i ~= safe_i and not self.mines[i] -- O(infinity) :^)
+    until (
+        self.unrevealed_count - self.mine_count <= 8
+        or not is_adjacent(safe_x, safe_y, x, y)
+      ) and not self.mines[i]
 
     self.mines[i] = true
+    self.mine_count = self.mine_count + 1
     for ay = y - 1, y + 1 do
       for ax = x - 1, x + 1 do
         local ai = self:index(ax, ay)
@@ -105,7 +116,7 @@ function Board:fill_reveal(x, y, reveal_cb)
     if ok and reveal_cb then
       reveal_cb(tx, ty, ti)
     end
-    if ok and self.danger[ti] == 0 then 
+    if ok and self.danger[ti] == 0 then
       for ay = ty - 1, ty + 1 do
         for ax = tx - 1, tx + 1 do
           local ai = self:index(ax, ay)
