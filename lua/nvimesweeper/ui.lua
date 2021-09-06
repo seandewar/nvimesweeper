@@ -50,7 +50,7 @@ function Ui:redraw_status()
     status = "Flagged: " .. board.flag_count .. "/" .. board.mine_count
     local hl_len = #status
     status = time_string() .. "    " .. status
-    if board.flag_count >= board.mine_count then
+    if board.flag_count > board.mine_count then
       hl_col1 = #status - hl_len
       hl_col2, hl_group = hl_col1 + hl_len, "NvimesweeperTooManyFlags"
     end
