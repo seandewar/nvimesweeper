@@ -96,7 +96,11 @@ function M.play(opts)
   if
     not input_nr("Board width? ", "width", "40")
     or not input_nr("Board height? ", "height", "12")
-    or not input_nr("How many mines? ", "mines", "60")
+    or not input_nr(
+      "How many mines? ",
+      "mines",
+      math.max(2, math.floor(opts.width * opts.height * 0.15))
+    )
   then
     return -- cancelled
   end
