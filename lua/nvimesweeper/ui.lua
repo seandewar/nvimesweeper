@@ -267,8 +267,11 @@ local function create_window(ui, float_opts)
       relative = "editor",
       width = float_opts.width,
       height = float_opts.height,
-      row = math.max(0, math.floor((vim.go.lines - float_opts.height) / 2) - 1),
-      col = math.floor((vim.go.columns - float_opts.width) / 2),
+      row = math.max(
+        0,
+        math.floor((api.nvim_get_option "lines" - float_opts.height) / 2) - 1
+      ),
+      col = math.floor((api.nvim_get_option "columns" - float_opts.width) / 2),
       style = "minimal",
       border = "single",
     })
@@ -326,7 +329,7 @@ end
 
 local function move_cursor_to_click()
   fn.getchar()
-  if vim.v.mouse_winid == api.nvim_get_current_win() then
+  if api.nvim_get_vvar "mouse_winid" == api.nvim_get_current_win() then
     api.nvim_win_set_cursor(0, { vim.v.mouse_lnum, vim.v.mouse_col - 1 })
   end
 end
