@@ -24,19 +24,6 @@ Install it using your favourite package manager like any other plugin, then run
 
 Run `:help nvimesweeper` for more details.
 
-### Seeding the random number generator
-
-Nvimesweeper does not yet take responsibility for seeding the random number
-generator used to place the mines, meaning you may see the same mine layout
-after restarting Nvim.
-
-To solve this, you may want to seed the RNG before running `:Nvimesweeper`,
-like:
-
-```vim
-:lua math.randomseed(os.time())
-```
-
 ## Why did you make this?
 
 I don't know...

@@ -1,4 +1,4 @@
-local fn = vim.fn
+local fn, uv = vim.fn, vim.loop
 
 local config_mod = require "nvimesweeper.config"
 local game = require "nvimesweeper.game"
@@ -9,6 +9,7 @@ local opt_types = {
   width = "number",
   height = "number",
   mines = "number",
+  seed = "number", -- can be nil
   tab = "boolean",
 }
 
@@ -87,6 +88,14 @@ function M.play(opts)
     end
   end
 
+  if not opts.seed then
+    -- choose a seed based on the current time (in seconds) if omitted
+    local seconds, _ = uv.gettimeofday()
+    opts.seed = seconds
+  elseif not util.is_integer(opts.seed) then
+    error "the seed must be an integer!"
+  end
+
   -- ensure we have a value for the board size and mine count
   local function input_nr(str, opt, default)
     opts[opt] = opts[opt]
@@ -126,7 +135,7 @@ function M.play(opts)
     error "impossible game; too many mines!"
   end
 
-  game.new_game(opts.width, opts.height, opts.mines, opts.tab)
+  game.new_game(opts.width, opts.height, opts.mines, opts.seed, opts.tab)
 end
 
 function M.play_cmd(args)

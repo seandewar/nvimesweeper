@@ -42,34 +42,39 @@ function Ui:redraw_status()
 
   local state = self.game.state
   local hl_col1, hl_col2, hl_group
-  local status
+  local status = { "", "" }
   if state == game_state.GAME_NOT_STARTED then
-    status = "Reveal a square or press F1 for help."
+    status[1] = "Reveal a square or press F1 for help."
   elseif state == game_state.GAME_STARTED then
     local board = self.game.board
-    status = "Flagged: " .. board.flag_count .. "/" .. board.mine_count
-    local hl_len = #status
-    status = time_string() .. "    " .. status
+    status[1] = "Flagged: " .. board.flag_count .. "/" .. board.mine_count
+    local hl_len = #status[1]
+    status[1] = time_string() .. "    " .. status[1]
     if board.flag_count > board.mine_count then
-      hl_col1 = #status - hl_len
+      hl_col1 = #status[1] - hl_len
       hl_col2, hl_group = hl_col1 + hl_len, "NvimesweeperTooManyFlags"
     end
   elseif game_state.is_game_over(state) then
     if state == game_state.GAME_WON then
-      status = "Congratulations, you win!"
+      status[1] = "Congratulations, you win!"
       hl_group = "NvimesweeperWin"
     elseif state == game_state.GAME_LOST then
-      status = "KA-BOOM! You explode..."
+      status[1] = "KA-BOOM! You explode..."
       hl_group = "NvimesweeperLose"
     end
-    hl_col1, hl_col2 = 0, #status
-    status = status .. " " .. time_string(true)
+    hl_col1, hl_col2 = 0, #status[1]
+    status[1] = status[1] .. " " .. time_string(true)
+    status[2] = "Seed: " .. self.game.seed
   end
 
-  local left_pad = centering_left_pad(self, #status)
-  status = string.rep(" ", left_pad) .. status
+  local left_pads = {}
+  for i, s in ipairs(status) do
+    left_pads[i] = centering_left_pad(self, #s)
+    status[i] = string.rep(" ", left_pads[i]) .. s
+  end
+
   self:enable_modification(true)
-  api.nvim_buf_set_lines(self.buf, 0, 2, false, { status, "" })
+  api.nvim_buf_set_lines(self.buf, 0, 2, false, status)
   self:enable_modification(false)
 
   if hl_col1 then
@@ -77,10 +82,10 @@ function Ui:redraw_status()
       self.buf,
       ns,
       0,
-      hl_col1 + left_pad,
+      hl_col1 + left_pads[1],
       {
         id = self.status_hl_extmark,
-        end_col = hl_col2 + left_pad,
+        end_col = hl_col2 + left_pads[1],
         hl_group = hl_group,
       }
     )

@@ -31,6 +31,20 @@ COMMANDS					*nvimesweeper-commands*
 			"mines"		Number of mines to place on the board.
 					Takes a positive integer.
 
+			"seed"		The seed used to randomly place the
+					mines.
+					Takes an integer. Defaults to the
+					current time in seconds (from
+					`vim.loop.gettimeofday()`).
+
+					Using the same seed with the same
+					"width", "height" and "mines" settings
+					will result in the same mine locations
+					between games.
+
+					The |srand()| and |rand()| functions
+					are used to randomize the mines.
+
 			"tab"		Display the game in a new tab page
 					window, rather than a floating window.
 					Takes a boolean. Defaults to false.
@@ -135,17 +149,6 @@ Nvimesweeper represents the board state by displaying various symbols:
 X			At the end of a game, all flagged squares that did not
 			contain a mine are revealed with this symbol.
 
-==============================================================================
-SEEDING THE RANDOM NUMBER GENERATOR		*nvimesweeper-rng*
-
-Nvimesweeper does not yet take responsibility for seeding the random number
-generator used to place the mines, meaning you may see the same mine layout
-after restarting Nvim.
-
-To solve this, you may want to seed the RNG before running `:Nvimesweeper`.
-For example, using the command: >
-    :lua math.randomseed(os.time())
-<
 ==============================================================================
 LUA FUNCTIONS					*nvimesweeper-lua-functions*
 

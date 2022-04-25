@@ -1,3 +1,5 @@
+local api, fn = vim.api, vim.fn
+
 local M = {
   SQUARE_NONE = 0,
   SQUARE_FLAGGED = 1,
@@ -20,7 +22,7 @@ function Board:index(x, y)
 end
 
 -- Uses self.mine_count if mine_count argument is nil
-function Board:place_mines(safe_x, safe_y, mine_count)
+function Board:place_mines(safe_x, safe_y, seed, mine_count)
   mine_count = mine_count or self.mine_count
   self.mines = {}
   self.mine_count = 0
@@ -29,11 +31,16 @@ function Board:place_mines(safe_x, safe_y, mine_count)
     return math.abs(x - x2) <= 1 and math.abs(y - y2) <= 1
   end
 
+  api.nvim_set_var("_nvimesweeper_seed", fn.srand(seed))
+  local function rand(max_excl)
+    return api.nvim_eval "rand(g:_nvimesweeper_seed)" % max_excl
+  end
+
   for _ = 1, mine_count do
     local x, y, i
     repeat
-      x = math.random(0, self.width - 1)
-      y = math.random(0, self.height - 1)
+      x = rand(self.width)
+      y = rand(self.height)
       i = self:index(x, y)
     until (
         self.unrevealed_count - self.mine_count <= 8
