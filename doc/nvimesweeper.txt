@@ -3,7 +3,7 @@
 Author:  Sean Dewar <https://github.com/seandewar>
 License: MIT
 
-This plugin requires Neovim version 0.5 or newer.
+This plugin requires Neovim version 0.7 or newer.
 
 ==============================================================================
 CONFIGURATION					*nvimesweeper-configure*

@@ -3,7 +3,7 @@ local api = vim.api
 local M = {}
 
 function M.reload()
-  package.loaded.nvimesweeper = nil
+  package.loaded["nvimesweeper"] = nil
   package.loaded["nvimesweeper.board"] = nil
   package.loaded["nvimesweeper.config"] = nil
   package.loaded["nvimesweeper.game"] = nil
@@ -21,17 +21,19 @@ function M.is_integer(number)
   return type(number) == "number" and math.floor(number) == number
 end
 
-function M.nnoremap(buf, lhs, rhs)
+function M.nnoremap(buf, lhs, rhs, desc)
   if type(lhs) == "string" then
     lhs = { lhs }
   end
+
   for _, value in ipairs(lhs) do
+    local callback = type(rhs) == "function" and rhs or nil
     api.nvim_buf_set_keymap(
       buf,
       "n",
       value,
-      rhs,
-      { noremap = true, silent = true }
+      callback and "" or rhs,
+      { noremap = true, silent = true, callback = callback, desc = desc }
     )
   end
 end

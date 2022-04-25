@@ -1,5 +1,9 @@
-if !has('nvim-0.5')
-    echoerr "[nvimesweeper] Neovim version 0.5 or above is required!"
+if !has('nvim-0.7')
+    echoerr "[nvimesweeper] Neovim version 0.7 or above is required!"
+    if has('nvim-0.5')
+        echomsg "Note: a 'nvim-0.5' compatibility git branch exists if you " ..
+              \ "still want to play, but it is not maintained."
+    endif
     finish
 endif
 

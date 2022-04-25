@@ -255,18 +255,6 @@ function Ui:win_to_board_pos(wx, wy)
   return wx - board_pos[2], wy - board_pos[1]
 end
 
-local function define_buf_autocmd(buf, event, rhs)
-  vim.cmd(string.format("autocmd %s <buffer=%d> ++once %s", event, buf, rhs))
-end
-
-function M.schedule_buf_delete(buf)
-  vim.schedule(function()
-    if api.nvim_buf_is_valid(buf) then
-      api.nvim_buf_delete(buf, { force = true })
-    end
-  end)
-end
-
 local function create_window(ui, float_opts)
   local win
   if float_opts then
@@ -309,11 +297,17 @@ local function create_window(ui, float_opts)
     -- Funnily enough, this uncovered a crash in nvim_open_win() when I used
     -- BufLeave instead: https://github.com/neovim/neovim/pull/15549 -- So, you
     -- can say this silly Minesweeper clone helped improve Neovim... :P
-    define_buf_autocmd(
-      ui.buf,
-      "WinLeave",
-      "lua require('nvimesweeper.ui').schedule_buf_delete(" .. ui.buf .. ")"
-    )
+    api.nvim_create_autocmd("WinLeave", {
+      buffer = ui.buf,
+      once = true,
+      callback = function()
+        vim.schedule(function()
+          if api.nvim_buf_is_valid(ui.buf) then
+            api.nvim_buf_delete(ui.buf, { force = true })
+          end
+        end)
+      end,
+    })
   else
     -- float "minimal" style already sets these
     api.nvim_win_set_option(win, "list", false)
@@ -325,12 +319,11 @@ local function create_window(ui, float_opts)
   return true
 end
 
-function M.move_cursor_to_click()
+local function move_cursor_to_click()
   fn.getchar()
-  if vim.v.mouse_winid ~= api.nvim_get_current_win() then
-    return false
+  if vim.v.mouse_winid == api.nvim_get_current_win() then
+    api.nvim_win_set_cursor(0, { vim.v.mouse_lnum, vim.v.mouse_col - 1 })
   end
-  api.nvim_win_set_cursor(0, { vim.v.mouse_lnum, vim.v.mouse_col - 1 })
 end
 
 function M.new_ui(game, open_tab)
@@ -367,49 +360,34 @@ function M.new_ui(game, open_tab)
   )
 
   util.nnoremap(buf, "<F1>", "<Cmd>help nvimesweeper-maps<CR>")
-  util.nnoremap(
-    buf,
-    "<LeftMouse>",
-    "<Cmd>lua require('nvimesweeper.ui').move_cursor_to_click() "
-      .. "require('nvimesweeper.game').reveal()<CR>"
-  )
-  util.nnoremap(
-    buf,
-    "<RightMouse>",
-    "<Cmd>lua require('nvimesweeper.ui').move_cursor_to_click() "
-      .. "require('nvimesweeper.game').place_marker()<CR>"
-  )
 
-  util.nnoremap(
-    buf,
-    { "<CR>", "x" },
-    "<Cmd>lua require('nvimesweeper.game').reveal()<CR>"
-  )
-  util.nnoremap(
-    buf,
-    "<Space>",
-    "<Cmd>lua require('nvimesweeper.game').place_marker()<CR>"
-  )
-  util.nnoremap(
-    buf,
-    "!",
-    "<Cmd>lua require('nvimesweeper.game').place_marker("
-      .. board_mod.SQUARE_FLAGGED
-      .. ")<CR>"
-  )
-  util.nnoremap(
-    buf,
-    "?",
-    "<Cmd>lua require('nvimesweeper.game').place_marker("
-      .. board_mod.SQUARE_MAYBE
-      .. ")<CR>"
-  )
+  local game_mod = require "nvimesweeper.game"
+  util.nnoremap(buf, "<LeftMouse>", function()
+    move_cursor_to_click()
+    game_mod.reveal()
+  end, "Reveal square using the mouse")
+  util.nnoremap(buf, "<RightMouse>", function()
+    move_cursor_to_click()
+    game_mod.place_marker()
+  end, "Cycle square marker using the mouse")
 
-  local cleanup_cmd = "lua require('nvimesweeper.ui').uis["
-    .. buf
-    .. "]:cleanup()"
-  define_buf_autocmd(buf, "BufDelete", cleanup_cmd)
-  define_buf_autocmd(buf, "VimLeavePre", cleanup_cmd)
+  util.nnoremap(buf, { "<CR>", "x" }, game_mod.reveal, "Reveal square")
+  util.nnoremap(buf, "<Space>", game_mod.place_marker, "Cycle square marker")
+
+  util.nnoremap(buf, "!", function()
+    game_mod.place_marker(board_mod.SQUARE_FLAGGED)
+  end, "Flag square")
+  util.nnoremap(buf, "?", function()
+    game_mod.place_marker(board_mod.SQUARE_MAYBE)
+  end, "Mark square")
+
+  api.nvim_create_autocmd({ "BufDelete", "VimLeavePre" }, {
+    buffer = buf,
+    once = true,
+    callback = function()
+      M.uis[buf]:cleanup()
+    end,
+  })
 
   ui:full_redraw()
   local board_pos = ui:board_square_pos(1)
