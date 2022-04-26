@@ -38,14 +38,6 @@ function M.nnoremap(buf, lhs, rhs, desc)
   end
 end
 
-function M.tbl_rep(value, count)
-  local result = {}
-  for i = 1, count do
-    result[i] = value
-  end
-  return result
-end
-
 -- supports only a limited set of conversions
 function M.convert_to(value, to_type)
   local from_type = type(value)

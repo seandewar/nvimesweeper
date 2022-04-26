@@ -207,7 +207,11 @@ function Ui:full_redraw()
   -- lines to already exist, so create filler lines to fit the entire board
   local left_pad = centering_left_pad(self, self.game.board.width)
   local line = string.rep(" ", left_pad + self.game.board.width)
-  local lines = util.tbl_rep(line, self.game.board.height)
+  local lines = {}
+  for i = 1, self.game.board.height do
+    lines[i] = line
+  end
+
   self:enable_modification(true)
   api.nvim_buf_set_lines(self.buf, -1, -1, false, lines)
 

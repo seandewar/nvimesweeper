@@ -19,12 +19,8 @@ function M.new_game(width, height, mine_count, seed, open_tab)
   }, {
     __index = Game,
   })
+  game.ui = ui_mod.new_ui(game, open_tab)
 
-  local ui = ui_mod.new_ui(game, open_tab)
-  if not ui then
-    return nil
-  end
-  game.ui = ui
   return game
 end
 
