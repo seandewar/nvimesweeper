@@ -86,14 +86,14 @@ function M.reveal(buf, x, y)
 
   local changed_x1, changed_y1 = game.board.width, game.board.height
   local changed_x2, changed_y2 = 0, 0
-
-  local function reveal_cb(sx, sy, _)
-    changed_x1 = math.min(changed_x1, sx)
-    changed_y1 = math.min(changed_y1, sy)
-    changed_x2 = math.max(changed_x2, sx)
-    changed_y2 = math.max(changed_y2, sy)
-  end
-  if game.board:fill_reveal(x, y, reveal_cb) == 0 then
+  if
+    game.board:fill_reveal(x, y, function(sx, sy, _)
+      changed_x1 = math.min(changed_x1, sx)
+      changed_y1 = math.min(changed_y1, sy)
+      changed_x2 = math.max(changed_x2, sx)
+      changed_y2 = math.max(changed_y2, sy)
+    end) == 0
+  then
     return false
   end
 

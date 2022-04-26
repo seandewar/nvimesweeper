@@ -1,4 +1,4 @@
-local fn, uv = vim.fn, vim.loop
+local fn, ui, uv = vim.fn, vim.ui, vim.loop
 
 local config_mod = require "nvimesweeper.config"
 local game = require "nvimesweeper.game"
@@ -56,86 +56,91 @@ function M.play(opts)
   end
   opts = new_opts
 
+  local function input_required_opts()
+    if not opts.seed then
+      -- choose a seed based on the current time (in seconds) if omitted
+      local seconds, _ = uv.gettimeofday()
+      opts.seed = seconds
+    elseif not util.is_integer(opts.seed) then
+      error "the seed must be an integer!"
+    end
+
+    -- ensure we have a value for the board size and mine count
+    local function input_nr(str, opt, default)
+      opts[opt] = opts[opt]
+        or util.convert_to(fn.input(str, default), opt_types[opt])
+      return opts[opt] ~= ""
+    end
+    if
+      not input_nr("Board width? ", "width", "40")
+      or not input_nr("Board height? ", "height", "12")
+      or not input_nr(
+        "How many mines? ",
+        "mines",
+        math.max(2, math.floor(opts.width * opts.height * 0.15))
+      )
+    then
+      return -- cancelled
+    end
+
+    if
+      not util.is_integer(opts.width)
+      or not util.is_integer(opts.height)
+      or not util.is_integer(opts.mines)
+      or opts.width <= 0
+      or opts.height <= 0
+      or opts.mines <= 0
+    then
+      error "board size and mine count must be positive integers!"
+    end
+
+    local size = opts.width * opts.height
+    if opts.mines == 1 or opts.mines == size - 1 then
+      error(
+        "way too easy; your first chosen square is always safe, so this would be "
+          .. "a guaranteed win..."
+      )
+    elseif opts.mines >= size then
+      error "impossible game; too many mines!"
+    end
+
+    game.new_game(opts.width, opts.height, opts.mines, opts.seed, opts.tab)
+  end
+
   -- if nothing was specified for the board size and mine count, prompt for a
   -- preset to use instead
   if not opts.width and not opts.height and not opts.mines then
-    local lines = { "Choose a game preset: " }
-    local choices = {}
-    for _, preset_name in ipairs(config.prompt_presets) do
-      local preset = config.presets[preset_name]
-      lines[#lines + 1] = string.format(
-        "- %s (%dx%d, %d mines)",
-        preset_name,
-        preset.width,
-        preset.height,
-        preset.mines
-      )
-      choices[#choices + 1] = "&" .. preset_name
-    end
-    lines[#lines + 1] = ""
-    choices[#choices + 1] = "&custom"
+    local choices = vim.deepcopy(config.prompt_presets)
+    choices[#choices + 1] = "custom"
 
-    local choice = fn.confirm(
-      table.concat(lines, "\n"),
-      table.concat(choices, "\n"),
-      #config.prompt_presets + 1
-    )
-    if choice == 0 then
-      return -- cancelled
-    elseif choice <= #config.prompt_presets then
-      local preset = config.presets[config.prompt_presets[choice]]
-      opts = vim.tbl_extend("force", opts, preset)
-    end
+    ui.select(choices, {
+      prompt = "Choose a game preset:",
+      format_item = function(preset_name)
+        if preset_name == "custom" then
+          return "custom game"
+        else
+          local preset = config.presets[preset_name]
+          return string.format(
+            "%s (%dx%d, %d mines)",
+            preset_name,
+            preset.width,
+            preset.height,
+            preset.mines
+          )
+        end
+      end,
+    }, function(choice, _)
+      if not choice then
+        return -- cancelled
+      end
+      if choice ~= "custom" then
+        opts = vim.tbl_extend("force", opts, config.presets[choice])
+      end
+      vim.schedule(input_required_opts)
+    end)
+  else
+    input_required_opts()
   end
-
-  if not opts.seed then
-    -- choose a seed based on the current time (in seconds) if omitted
-    local seconds, _ = uv.gettimeofday()
-    opts.seed = seconds
-  elseif not util.is_integer(opts.seed) then
-    error "the seed must be an integer!"
-  end
-
-  -- ensure we have a value for the board size and mine count
-  local function input_nr(str, opt, default)
-    opts[opt] = opts[opt]
-      or util.convert_to(fn.input(str, default), opt_types[opt])
-    return opts[opt] ~= ""
-  end
-  if
-    not input_nr("Board width? ", "width", "40")
-    or not input_nr("Board height? ", "height", "12")
-    or not input_nr(
-      "How many mines? ",
-      "mines",
-      math.max(2, math.floor(opts.width * opts.height * 0.15))
-    )
-  then
-    return -- cancelled
-  end
-
-  if
-    not util.is_integer(opts.width)
-    or not util.is_integer(opts.height)
-    or not util.is_integer(opts.mines)
-    or opts.width <= 0
-    or opts.height <= 0
-    or opts.mines <= 0
-  then
-    error "board size and mine count must be positive integers!"
-  end
-
-  local size = opts.width * opts.height
-  if opts.mines == 1 or opts.mines == size - 1 then
-    error(
-      "way too easy; your first chosen square is always safe, so this would be "
-        .. "a guaranteed win..."
-    )
-  elseif opts.mines >= size then
-    error "impossible game; too many mines!"
-  end
-
-  game.new_game(opts.width, opts.height, opts.mines, opts.seed, opts.tab)
 end
 
 function M.play_cmd(args)
