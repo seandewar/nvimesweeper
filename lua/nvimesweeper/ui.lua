@@ -334,7 +334,10 @@ end
 local function move_cursor_to_click()
   fn.getchar()
   if api.nvim_get_vvar "mouse_winid" == api.nvim_get_current_win() then
-    api.nvim_win_set_cursor(0, { vim.v.mouse_lnum, vim.v.mouse_col - 1 })
+    api.nvim_win_set_cursor(
+      0,
+      { api.nvim_get_vvar "mouse_lnum", api.nvim_get_vvar "mouse_col" - 1 }
+    )
   end
 end
 
