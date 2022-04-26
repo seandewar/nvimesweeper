@@ -58,6 +58,8 @@ function Board:place_mines(safe_x, safe_y, seed, mine_count)
       end
     end
   end
+
+  api.nvim_del_var "_nvimesweeper_seed"
 end
 
 function Board:reset()
