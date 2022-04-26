@@ -340,11 +340,14 @@ function M.new_ui(game, open_tab)
     error "failed to create game buffer!"
   end
 
-  local ui = vim.deepcopy(Ui)
-  ui.buf = buf
-  ui.game = game
-  ui.board_extmarks = {}
-  ui.redraw_status_timer = uv.new_timer()
+  local ui = setmetatable({
+    buf = buf,
+    game = game,
+    board_extmarks = {},
+    redraw_status_timer = uv.new_timer(),
+  }, {
+    __index = Ui,
+  })
 
   if
     not create_window(ui, not open_tab and {

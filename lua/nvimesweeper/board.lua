@@ -139,11 +139,14 @@ function Board:fill_reveal(x, y, reveal_cb)
 end
 
 function M.new_board(width, height)
-  local board = vim.deepcopy(Board)
-  board.width = width
-  board.height = height
-  board.state = {}
-  board.danger = {}
+  local board = setmetatable({
+    width = width,
+    height = height,
+    state = {},
+    danger = {},
+  }, {
+    __index = Board,
+  })
 
   board:reset()
   return board

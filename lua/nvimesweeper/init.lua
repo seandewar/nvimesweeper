@@ -9,7 +9,7 @@ local opt_types = {
   width = "number",
   height = "number",
   mines = "number",
-  seed = "number", -- can be nil
+  seed = "number",
   tab = "boolean",
 }
 

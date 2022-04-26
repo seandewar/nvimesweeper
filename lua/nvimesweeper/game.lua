@@ -9,11 +9,16 @@ local M = {}
 local Game = {}
 
 function M.new_game(width, height, mine_count, seed, open_tab)
-  local game = vim.deepcopy(Game)
-  game.state = game_state.GAME_NOT_STARTED
-  game.board = board_mod.new_board(width, height)
-  game.board.mine_count = mine_count
-  game.seed = seed
+  local board = board_mod.new_board(width, height)
+  board.mine_count = mine_count
+
+  local game = setmetatable({
+    state = game_state.GAME_NOT_STARTED,
+    seed = seed,
+    board = board,
+  }, {
+    __index = Game,
+  })
 
   local ui = ui_mod.new_ui(game, open_tab)
   if not ui then
