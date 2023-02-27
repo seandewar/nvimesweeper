@@ -342,7 +342,7 @@ local function move_cursor_to_click()
 end
 
 function M.new_ui(game, open_tab)
-  local buf = api.nvim_create_buf(false, true)
+  local buf = api.nvim_create_buf(open_tab, true)
   if buf == 0 then
     error "failed to create game buffer!"
   end
